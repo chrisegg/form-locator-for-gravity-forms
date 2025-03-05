@@ -1,4 +1,3 @@
-
 <?php
 class Form_Locator_For_Gravity_Forms_Run {
 
