@@ -1,4 +1,3 @@
-
 <div class='wrap'>
     <h1>Gravity Forms Pages</h1>
     <p><strong>Total Posts Scanned:</strong> <?= $total_posts_scanned; ?></p>
