@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Form Locator for Gravity Forms
