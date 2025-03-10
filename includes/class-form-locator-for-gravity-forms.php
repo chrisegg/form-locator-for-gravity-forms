@@ -5,7 +5,6 @@ if (!defined('ABSPATH')) {
 }
 
 class Form_Locator_For_Gravity_Forms {
-
     public function __construct() {
         add_action('admin_menu', [$this, 'add_gf_pages_menu']);
     }
@@ -26,6 +25,14 @@ class Form_Locator_For_Gravity_Forms {
     // List pages containing Gravity Forms shortcodes or blocks
     public function list_gravity_forms_pages() {
         global $wpdb;
+
+        // Perform the scan only when the menu item is clicked
+        if (!isset($_GET['gf_scan']) || $_GET['gf_scan'] !== '1') {
+            echo '<div class="wrap"><h1>Gravity Forms Pages</h1>';
+            echo '<p><a href="' . admin_url('admin.php?page=gf-pages-list&gf_scan=1') . '" class="button button-primary">Scan for Gravity Forms</a></p>';
+            echo '</div>';
+            return;
+        }
 
         // Retrieve all published posts
         $results = $wpdb->get_results("SELECT ID, post_title, post_type, post_content FROM {$wpdb->posts} WHERE post_status = 'publish'", ARRAY_A);
@@ -55,19 +62,19 @@ class Form_Locator_For_Gravity_Forms {
 
     // Extract form IDs from Gravity Forms shortcodes securely
     private function get_gravity_form_ids($content) {
-        preg_match_all('/\[gravityform[^\]]*id=["\']?(\d+)["\']?/i', $content, $matches);
+        preg_match_all('/\\[gravityform[^\\]]*id=[\"\\']?(\\d+)[\"\\']?/i', $content, $matches);
         return !empty($matches[1]) ? array_map('intval', $matches[1]) : [];
     }
 
     // Extract form IDs from Gravity Forms blocks securely
     private function get_gravity_block_form_ids($content) {
-        preg_match_all('/"formId"\s*:\s*"?(\d+)"?/', $content, $matches);
+        preg_match_all('/\"formId\"\\s*:\\s*\"?(\\d+)\"?/', $content, $matches);
         return !empty($matches[1]) ? array_map('intval', $matches[1]) : [];
     }
 
     // Check if the content has a Gravity Forms login form securely
     private function has_gravity_login_form($content) {
-        return (bool) preg_match('/\[gravityform[^\]]*action=["\']login["\']/', $content);
+        return (bool) preg_match('/\\[gravityform[^\\]]*action=[\"\\']login[\"\\']/', $content);
     }
 
     // Check the status of a Gravity Form securely
