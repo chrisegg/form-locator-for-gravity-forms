@@ -4,6 +4,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+<?php
+// Prevent direct file access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 class Form_Locator_For_Gravity_Forms {
     public function __construct() {
         add_action('admin_menu', [$this, 'add_gf_pages_menu']);
@@ -26,40 +32,48 @@ class Form_Locator_For_Gravity_Forms {
     public function list_gravity_forms_pages() {
         global $wpdb;
 
-        // Perform the scan only when the menu item is clicked
-        if (!isset($_GET['gf_scan']) || $_GET['gf_scan'] !== '1') {
-            echo '<div class="wrap"><h1>Gravity Forms Pages</h1>';
-            echo '<p><a href="' . esc_url(admin_url('admin.php?page=gf-pages-list&gf_scan=1')) . '" class="button button-primary">Scan for Gravity Forms</a></p>';
-            echo '</div>';
-            return;
-        }
-
-        // Retrieve all published posts
-        $results = $wpdb->get_results($wpdb->prepare(
-            "SELECT ID, post_title, post_type, post_content FROM {$wpdb->posts} WHERE post_status = %s", 'publish'
-        ), ARRAY_A);
-        $total_posts_scanned = count($results);
-        $gf_pages = [];
-
-        // Scan for Gravity Forms usage in content
-        foreach ($results as $post) {
-            $form_ids = $this->get_gravity_form_ids($post['post_content']);
-            $block_form_ids = $this->get_gravity_block_form_ids($post['post_content']);
-            $has_login_form = $this->has_gravity_login_form($post['post_content']);
-
-            if (!empty($form_ids) || !empty($block_form_ids) || $has_login_form) {
-                $gf_pages[] = [
-                    'ID' => $post['ID'],
-                    'Type' => esc_html($post['post_type']), // Secure output
-                    'Title' => esc_html($post['post_title']), // Secure output
-                    'Form IDs' => array_map('intval', $form_ids),
-                    'Block Form IDs' => array_map('intval', $block_form_ids),
-                    'Has Login Form' => $has_login_form // Keep boolean logic, escape during output
-                ];
+        try {
+            // Perform the scan only when the menu item is clicked
+            if (!isset($_GET['gf_scan']) || $_GET['gf_scan'] !== '1') {
+                echo '<div class="wrap"><h1>Gravity Forms Pages</h1>';
+                echo '<p><a href="' . esc_url(admin_url('admin.php?page=gf-pages-list&gf_scan=1')) . '" class="button button-primary">Scan for Gravity Forms</a></p>';
+                echo '</div>';
+                return;
             }
-        }
 
-        include plugin_dir_path(__FILE__) . '../views/admin-page.php';
+            // Retrieve all published posts
+            $results = $wpdb->get_results($wpdb->prepare(
+                "SELECT ID, post_title, post_type, post_content FROM {$wpdb->posts} WHERE post_status = %s", 'publish'
+            ), ARRAY_A);
+            if ($wpdb->last_error) {
+                throw new Exception('Database error: ' . $wpdb->last_error);
+            }
+            $total_posts_scanned = count($results);
+            $gf_pages = [];
+
+            // Scan for Gravity Forms usage in content
+            foreach ($results as $post) {
+                $form_ids = $this->get_gravity_form_ids($post['post_content']);
+                $block_form_ids = $this->get_gravity_block_form_ids($post['post_content']);
+                $has_login_form = $this->has_gravity_login_form($post['post_content']);
+
+                if (!empty($form_ids) || !empty($block_form_ids) || $has_login_form) {
+                    $gf_pages[] = [
+                        'ID' => $post['ID'],
+                        'Type' => esc_html($post['post_type']), // Secure output
+                        'Title' => esc_html($post['post_title']), // Secure output
+                        'Form IDs' => array_map('intval', $form_ids),
+                        'Block Form IDs' => array_map('intval', $block_form_ids),
+                        'Has Login Form' => $has_login_form // Keep boolean logic, escape during output
+                    ];
+                }
+            }
+
+            include plugin_dir_path(__FILE__) . '../views/admin-page.php';
+        } catch (Exception $e) {
+            $this->log_error($e->getMessage());
+            echo '<div class="error"><p>There was an error processing your request. Please try again later.</p></div>';
+        }
     }
 
     // Extract form IDs from Gravity Forms shortcodes securely
@@ -113,6 +127,11 @@ class Form_Locator_For_Gravity_Forms {
             'deleted' => " <span style='color: red;'>(Deleted)</span>"
         ];
         echo isset($status_messages[$form_status]) ? $status_messages[$form_status] : '';
+    }
+
+    // Log error messages to a file
+    private function log_error($message) {
+        error_log($message, 3, plugin_dir_path(__FILE__) . 'error.log');
     }
 }
 ?>
