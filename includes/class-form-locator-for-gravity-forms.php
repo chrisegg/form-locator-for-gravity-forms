@@ -29,13 +29,15 @@ class Form_Locator_For_Gravity_Forms {
         // Perform the scan only when the menu item is clicked
         if (!isset($_GET['gf_scan']) || $_GET['gf_scan'] !== '1') {
             echo '<div class="wrap"><h1>Gravity Forms Pages</h1>';
-            echo '<p><a href="' . admin_url('admin.php?page=gf-pages-list&gf_scan=1') . '" class="button button-primary">Scan for Gravity Forms</a></p>';
+            echo '<p><a href="' . esc_url(admin_url('admin.php?page=gf-pages-list&gf_scan=1')) . '" class="button button-primary">Scan for Gravity Forms</a></p>';
             echo '</div>';
             return;
         }
 
         // Retrieve all published posts
-        $results = $wpdb->get_results("SELECT ID, post_title, post_type, post_content FROM {$wpdb->posts} WHERE post_status = 'publish'", ARRAY_A);
+        $results = $wpdb->get_results($wpdb->prepare(
+            "SELECT ID, post_title, post_type, post_content FROM {$wpdb->posts} WHERE post_status = %s", 'publish'
+        ), ARRAY_A);
         $total_posts_scanned = count($results);
         $gf_pages = [];
 
@@ -87,7 +89,9 @@ class Form_Locator_For_Gravity_Forms {
 
         // Sanitize form ID before database query
         $form_id = intval($form_id);
-        $trash_check = $wpdb->get_var($wpdb->prepare("SELECT is_trash FROM {$wpdb->prefix}gf_form WHERE id = %d", $form_id));
+        $trash_check = $wpdb->get_var($wpdb->prepare(
+            "SELECT is_trash FROM {$wpdb->prefix}gf_form WHERE id = %d", $form_id
+        ));
 
         if ($trash_check == 1) {
             return 'trash';
