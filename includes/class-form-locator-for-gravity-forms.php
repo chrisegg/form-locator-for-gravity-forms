@@ -4,12 +4,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-<?php
-// Prevent direct file access
-if (!defined('ABSPATH')) {
-    exit;
-}
-
 class Form_Locator_For_Gravity_Forms {
     public function __construct() {
         add_action('admin_menu', [$this, 'add_gf_pages_menu']);
