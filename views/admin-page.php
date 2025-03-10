@@ -2,6 +2,13 @@
     <h1>Gravity Forms Pages</h1>
     <p><strong>Total Posts Scanned:</strong> <?= $total_posts_scanned; ?></p>
     <p><strong>Pages Using Gravity Forms:</strong> <?= count($gf_pages); ?></p>
+
+    <?php if ($total_posts_scanned > 0): ?>
+        <p><strong>Scan Status:</strong> Scan complete. <?= count($gf_pages) > 0 ? 'Pages with Gravity Forms found.' : 'No pages with Gravity Forms were found.'; ?></p>
+    <?php else: ?>
+        <p><strong>Scan Status:</strong> No posts were scanned. Please ensure there are published posts to scan.</p>
+    <?php endif; ?>
+
     <table class='widefat fixed' style='margin-top: 20px; border-collapse: collapse; width: 100%;'>
         <thead>
             <tr style='border-bottom: 2px solid #ddd;'>
