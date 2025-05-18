@@ -1,5 +1,5 @@
 {
-	"name": "mattradford/form-locator-for-gravity-forms",
+    "name": "mattradford/form-locator-for-gravity-forms",
     "description": "Lists WordPress pages and posts that contain Gravity Forms block or shortcode, including those deleted, trashed, and inactive.",
     "type": "plugin",
     "license": "GPL2",
