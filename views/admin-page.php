@@ -86,12 +86,13 @@
     <table class='widefat fixed' style='margin-top: 20px; border-collapse: collapse; width: 100%;'>
         <thead>
             <tr style='border-bottom: 2px solid #ddd;'>
-                <th width='8%'>Post ID</th>
-                <th width='8%'>Type</th>
-                <th width='35%'>Title</th>
-                <th width='15%'>Form Shortcodes</th>
-                <th width='15%'>Form Blocks</th>
-                <th width='10%'>Login Form</th>
+                <th width='6%'>Post ID</th>
+                <th width='6%'>Type</th>
+                <th width='25%'>Title</th>
+                <th width='12%'>Form Shortcodes</th>
+                <th width='12%'>Form Blocks</th>
+                <th width='12%'>Page Builder Forms</th>
+                <th width='8%'>Login Form</th>
             </tr>
         </thead>
         <tbody>
@@ -109,6 +110,12 @@
                     <td>
                         <?php foreach ($data['Block Form IDs'] as $form_id): ?>
                             <span style='color: green;'>Form ID:<?= esc_html($form_id); ?></span>
+                            <?= $this->display_form_status_message($form_id, $this->check_gravity_form_status($form_id)); ?>
+                        <?php endforeach; ?>
+                    </td>
+                    <td>
+                        <?php foreach ($data['Page Builder Form IDs'] as $form_id): ?>
+                            <span style='color: orange;'>Form ID:<?= esc_html($form_id); ?></span>
                             <?= $this->display_form_status_message($form_id, $this->check_gravity_form_status($form_id)); ?>
                         <?php endforeach; ?>
                     </td>

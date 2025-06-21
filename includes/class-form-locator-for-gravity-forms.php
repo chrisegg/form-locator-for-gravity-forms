@@ -45,15 +45,17 @@ class Form_Locator_For_Gravity_Forms {
           foreach ($results as $post) {
               $form_ids = $this->get_gravity_form_ids($post['post_content']);
               $block_form_ids = $this->get_gravity_block_form_ids($post['post_content']);
+              $page_builder_form_ids = $this->get_page_builder_form_ids($post['ID'], $post['post_content']);
               $has_login_form = $this->has_gravity_login_form($post['post_content']);
   
-              if (!empty($form_ids) || !empty($block_form_ids) || $has_login_form) {
+              if (!empty($form_ids) || !empty($block_form_ids) || !empty($page_builder_form_ids) || $has_login_form) {
                   $gf_pages[] = [
                       'ID' => $post['ID'],
                       'Type' => esc_html($post['post_type']),
                       'Title' => esc_html($post['post_title']),
                       'Form IDs' => array_map('intval', $form_ids),
                       'Block Form IDs' => array_map('intval', $block_form_ids),
+                      'Page Builder Form IDs' => array_map('intval', $page_builder_form_ids),
                       'Has Login Form' => $has_login_form,
                   ];
               }
@@ -78,6 +80,186 @@ class Form_Locator_For_Gravity_Forms {
     private function get_gravity_block_form_ids($content) {
         preg_match_all('/"formId"\s*:\s*"?(\d+)"?/', $content, $matches);
         return !empty($matches[1]) ? array_map('intval', $matches[1]) : [];
+    }
+
+    // Extract form IDs from page builder widgets and add-ons
+    private function get_page_builder_form_ids($post_id, $content) {
+        $form_ids = [];
+        
+        // Check Elementor data
+        $elementor_form_ids = $this->get_elementor_form_ids($post_id);
+        if (!empty($elementor_form_ids)) {
+            $form_ids = array_merge($form_ids, $elementor_form_ids);
+        }
+        
+        // Check Beaver Builder data
+        $beaver_form_ids = $this->get_beaver_builder_form_ids($post_id);
+        if (!empty($beaver_form_ids)) {
+            $form_ids = array_merge($form_ids, $beaver_form_ids);
+        }
+        
+        // Check Divi Builder data
+        $divi_form_ids = $this->get_divi_builder_form_ids($post_id, $content);
+        if (!empty($divi_form_ids)) {
+            $form_ids = array_merge($form_ids, $divi_form_ids);
+        }
+        
+        // Check WPBakery Page Builder data
+        $wpbakery_form_ids = $this->get_wpbakery_form_ids($post_id, $content);
+        if (!empty($wpbakery_form_ids)) {
+            $form_ids = array_merge($form_ids, $wpbakery_form_ids);
+        }
+        
+        // Check for GravityKits and other add-ons in content
+        $addon_form_ids = $this->get_addon_form_ids($content);
+        if (!empty($addon_form_ids)) {
+            $form_ids = array_merge($form_ids, $addon_form_ids);
+        }
+        
+        return array_unique($form_ids);
+    }
+
+    // Extract form IDs from Elementor data
+    private function get_elementor_form_ids($post_id) {
+        global $wpdb;
+        $form_ids = [];
+        
+        // Check Elementor post meta
+        $elementor_data = get_post_meta($post_id, '_elementor_data', true);
+        if (!empty($elementor_data)) {
+            $data = json_decode($elementor_data, true);
+            if (is_array($data)) {
+                $form_ids = $this->parse_elementor_widgets($data);
+            }
+        }
+        
+        return $form_ids;
+    }
+
+    // Parse Elementor widgets recursively
+    private function parse_elementor_widgets($widgets) {
+        $form_ids = [];
+        
+        if (!is_array($widgets)) {
+            return $form_ids;
+        }
+        
+        foreach ($widgets as $widget) {
+            // Check for Gravity Forms widget
+            if (isset($widget['widgetType']) && $widget['widgetType'] === 'gravity-forms') {
+                if (isset($widget['settings']['form_id'])) {
+                    $form_ids[] = intval($widget['settings']['form_id']);
+                }
+            }
+            
+            // Check for GravityKits widget
+            if (isset($widget['widgetType']) && strpos($widget['widgetType'], 'gravitykits') !== false) {
+                if (isset($widget['settings']['form_id'])) {
+                    $form_ids[] = intval($widget['settings']['form_id']);
+                }
+            }
+            
+            // Check for custom Gravity Forms widgets
+            if (isset($widget['widgetType']) && strpos($widget['widgetType'], 'gravity') !== false) {
+                if (isset($widget['settings']['form_id'])) {
+                    $form_ids[] = intval($widget['settings']['form_id']);
+                }
+                if (isset($widget['settings']['gravity_form_id'])) {
+                    $form_ids[] = intval($widget['settings']['gravity_form_id']);
+                }
+            }
+            
+            // Recursively check nested elements
+            if (isset($widget['elements']) && is_array($widget['elements'])) {
+                $nested_form_ids = $this->parse_elementor_widgets($widget['elements']);
+                $form_ids = array_merge($form_ids, $nested_form_ids);
+            }
+        }
+        
+        return $form_ids;
+    }
+
+    // Extract form IDs from Beaver Builder data
+    private function get_beaver_builder_form_ids($post_id) {
+        global $wpdb;
+        $form_ids = [];
+        
+        // Check Beaver Builder post meta
+        $beaver_data = get_post_meta($post_id, '_fl_builder_data', true);
+        if (!empty($beaver_data)) {
+            $data = json_decode($beaver_data, true);
+            if (is_array($data)) {
+                foreach ($data as $node) {
+                    if (isset($node->type) && $node->type === 'module') {
+                        if (isset($node->settings->form_id)) {
+                            $form_ids[] = intval($node->settings->form_id);
+                        }
+                        if (isset($node->settings->gravity_form_id)) {
+                            $form_ids[] = intval($node->settings->gravity_form_id);
+                        }
+                    }
+                }
+            }
+        }
+        
+        return $form_ids;
+    }
+
+    // Extract form IDs from Divi Builder data
+    private function get_divi_builder_form_ids($post_id, $content) {
+        $form_ids = [];
+        
+        // Check Divi shortcodes in content
+        preg_match_all('/\[et_pb_gravityform[^\]]*form_id=[\"\']?(\d+)[\"\']?/i', $content, $matches);
+        if (!empty($matches[1])) {
+            $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+        }
+        
+        // Check Divi post meta
+        $divi_data = get_post_meta($post_id, '_et_pb_use_builder', true);
+        if ($divi_data === 'on') {
+            // Divi stores data in shortcodes, which we already checked above
+        }
+        
+        return $form_ids;
+    }
+
+    // Extract form IDs from WPBakery Page Builder data
+    private function get_wpbakery_form_ids($post_id, $content) {
+        $form_ids = [];
+        
+        // Check WPBakery shortcodes in content
+        preg_match_all('/\[gravityform[^\]]*id=[\"\']?(\d+)[\"\']?/i', $content, $matches);
+        if (!empty($matches[1])) {
+            $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+        }
+        
+        return $form_ids;
+    }
+
+    // Extract form IDs from various add-ons and custom implementations
+    private function get_addon_form_ids($content) {
+        $form_ids = [];
+        
+        // Check for GravityKits patterns
+        preg_match_all('/gravitykits[^}]*form_id[^}]*:[\s]*["\']?(\d+)["\']?/i', $content, $matches);
+        if (!empty($matches[1])) {
+            $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+        }
+        
+        // Check for custom JSON patterns
+        preg_match_all('/"form_id"[\s]*:[\s]*["\']?(\d+)["\']?/i', $content, $matches);
+        if (!empty($matches[1])) {
+            $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+        }
+        
+        // Check for Gravity Forms embed patterns
+        preg_match_all('/gravity_forms[^}]*id[\s]*:[\s]*["\']?(\d+)["\']?/i', $content, $matches);
+        if (!empty($matches[1])) {
+            $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+        }
+        
+        return $form_ids;
     }
 
     // Check if the content has a Gravity Forms login form securely
