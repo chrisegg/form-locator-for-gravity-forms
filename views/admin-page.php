@@ -12,6 +12,7 @@
         margin: 0 0 15px 0;
         font-size: 24px;
         font-weight: 600;
+        color: white;
     }
     
     .gf-locator-stats {
@@ -49,11 +50,11 @@
         background: rgba(255, 255, 255, 0.15);
         border-radius: 4px;
         border-left: 4px solid #4CAF50;
-        color: white;
+        color: #FFF9C4;
     }
     
     .gf-locator-status strong {
-        color: #4CAF50;
+        color: #FFF9C4;
     }
 </style>
 
