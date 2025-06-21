@@ -109,7 +109,7 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
 
 == Changelog ==
 
-= 1.1.0: March 4, 2025 =
+= 1.1.0: June 20, 2025 =
 * **NEW**: Added comprehensive page builder support
   * Elementor widget detection (Gravity Forms, GravityKits, custom widgets)
   * Beaver Builder module detection with widget-specific form ID extraction
