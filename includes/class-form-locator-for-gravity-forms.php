@@ -305,12 +305,55 @@ class Form_Locator_For_Gravity_Forms {
             }
         } else {
             error_log('No gform_widget found in content');
+            
             // Let's also check for other Beaver Builder indicators
             if (strpos($content, 'fl-builder') !== false) {
                 error_log('Found fl-builder indicator in content');
             }
             if (strpos($content, '<!-- wp:fl-builder') !== false) {
                 error_log('Found Beaver Builder block in content');
+            }
+            
+            // Look for widget titles that indicate Gravity Forms
+            if (strpos($content, 'fl-builder-settings-title-text-wrap') !== false) {
+                error_log('Found Beaver Builder widget title in content');
+                
+                // Look for "Form" in the widget title
+                if (preg_match('/<span[^>]*class="[^"]*fl-builder-settings-title-text-wrap[^"]*"[^>]*>Form<\/span>/', $content)) {
+                    error_log('Found "Form" widget title in Beaver Builder');
+                    
+                    // Now look for form IDs in the widget settings
+                    preg_match_all('/"form_id"[\s]*:[\s]*["\']?(\d+)["\']?/', $content, $matches);
+                    if (!empty($matches[1])) {
+                        error_log('Found form IDs from widget settings: ' . implode(', ', $matches[1]));
+                        $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+                    }
+                    
+                    // Also look for other form ID patterns in the widget data
+                    preg_match_all('/"id"[\s]*:[\s]*["\']?(\d+)["\']?/', $content, $matches);
+                    if (!empty($matches[1])) {
+                        error_log('Found potential form IDs from widget data: ' . implode(', ', $matches[1]));
+                        // We'll need to filter these to only include valid form IDs
+                        foreach ($matches[1] as $potential_id) {
+                            $form_id = intval($potential_id);
+                            if ($form_id > 0 && $form_id < 10000) { // Reasonable form ID range
+                                $form_ids[] = $form_id;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Look for Gravity Forms specific patterns in Beaver Builder data
+            if (strpos($content, 'gravity') !== false || strpos($content, 'gform') !== false) {
+                error_log('Found gravity/gform indicators in content');
+                
+                // Look for form IDs in various patterns
+                preg_match_all('/"form_id"[\s]*:[\s]*["\']?(\d+)["\']?/', $content, $matches);
+                if (!empty($matches[1])) {
+                    error_log('Found form IDs from gravity patterns: ' . implode(', ', $matches[1]));
+                    $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+                }
             }
         }
         
