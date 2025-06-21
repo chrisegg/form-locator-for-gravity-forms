@@ -93,7 +93,7 @@ class Form_Locator_For_Gravity_Forms {
         }
         
         // Check Beaver Builder data
-        $beaver_form_ids = $this->get_beaver_builder_form_ids($post_id);
+        $beaver_form_ids = $this->get_beaver_builder_form_ids($post_id, $content);
         if (!empty($beaver_form_ids)) {
             $form_ids = array_merge($form_ids, $beaver_form_ids);
         }
@@ -187,7 +187,7 @@ class Form_Locator_For_Gravity_Forms {
     }
 
     // Extract form IDs from Beaver Builder data
-    private function get_beaver_builder_form_ids($post_id) {
+    private function get_beaver_builder_form_ids($post_id, $content = '') {
         global $wpdb;
         $form_ids = [];
         
@@ -230,12 +230,20 @@ class Form_Locator_For_Gravity_Forms {
         
         // If no forms found in structured data, check the rendered content
         if (empty($form_ids)) {
-            $content = get_post_field('post_content', $post_id);
-            if (!empty($content)) {
-                // Look for Beaver Builder specific patterns in rendered content
-                $beaver_form_ids = $this->get_beaver_builder_from_content($content);
-                if (!empty($beaver_form_ids)) {
-                    $form_ids = array_merge($form_ids, $beaver_form_ids);
+            // Try multiple content sources
+            $content_sources = [
+                $content, // Original content passed in
+                get_post_field('post_content', $post_id), // Raw post content
+                get_post_field('post_content_filtered', $post_id), // Filtered content
+            ];
+            
+            foreach ($content_sources as $content_source) {
+                if (!empty($content_source)) {
+                    $beaver_form_ids = $this->get_beaver_builder_from_content($content_source);
+                    if (!empty($beaver_form_ids)) {
+                        $form_ids = array_merge($form_ids, $beaver_form_ids);
+                        break; // Found forms, no need to check other sources
+                    }
                 }
             }
         }
@@ -247,25 +255,32 @@ class Form_Locator_For_Gravity_Forms {
     private function get_beaver_builder_from_content($content) {
         $form_ids = [];
         
-        // Look for gform_widget class which indicates Gravity Forms widget
+        // Debug: Log if we find gform_widget
         if (strpos($content, 'gform_widget') !== false) {
+            error_log('Found gform_widget in content for post');
+            
             // Extract form IDs from the rendered HTML
             preg_match_all('/id="gform_(\d+)"/', $content, $matches);
             if (!empty($matches[1])) {
+                error_log('Found form IDs from id attribute: ' . implode(', ', $matches[1]));
                 $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
             }
             
             // Also check for data-formid attribute
             preg_match_all('/data-formid="(\d+)"/', $content, $matches);
             if (!empty($matches[1])) {
+                error_log('Found form IDs from data-formid: ' . implode(', ', $matches[1]));
                 $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
             }
             
             // Check for form_id in hidden inputs
             preg_match_all('/name="gform_submit" value="(\d+)"/', $content, $matches);
             if (!empty($matches[1])) {
+                error_log('Found form IDs from gform_submit: ' . implode(', ', $matches[1]));
                 $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
             }
+        } else {
+            error_log('No gform_widget found in content');
         }
         
         return array_unique($form_ids);
