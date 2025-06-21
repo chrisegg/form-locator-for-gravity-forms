@@ -11,14 +11,13 @@ class Form_Locator_For_Gravity_Forms {
 
     // Register the admin menu for the plugin
     public function add_gf_pages_menu() {
-        add_menu_page(
-            'Gravity Forms Pages', // Page title
-            'GF Pages', // Menu title
+        add_submenu_page(
+            'gform_forms', // Parent slug (Gravity Forms menu)
+            'Form Locator', // Page title
+            'Form Locator', // Menu title
             'manage_options', // Capability required to access
             'gf-pages-list', // Menu slug
-            [$this, 'list_gravity_forms_pages'], // Callback function to render page
-            'dashicons-list-view', // Icon displayed in menu
-            100 // Position in menu
+            [$this, 'list_gravity_forms_pages'] // Callback function to render page
         );
     }
 
