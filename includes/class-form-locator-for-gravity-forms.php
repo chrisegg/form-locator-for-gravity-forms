@@ -43,12 +43,16 @@ class Form_Locator_For_Gravity_Forms {
   
           // Scan for Gravity Forms usage in content
           foreach ($results as $post) {
+              error_log('Scanning post ID: ' . $post['ID'] . ' - Title: ' . $post['post_title']);
+              
               $form_ids = $this->get_gravity_form_ids($post['post_content']);
               $block_form_ids = $this->get_gravity_block_form_ids($post['post_content']);
               $page_builder_form_ids = $this->get_page_builder_form_ids($post['ID'], $post['post_content']);
               $has_login_form = $this->has_gravity_login_form($post['post_content']);
   
               if (!empty($form_ids) || !empty($block_form_ids) || !empty($page_builder_form_ids) || $has_login_form) {
+                  error_log('Found forms in post ID: ' . $post['ID'] . ' - Shortcodes: ' . implode(',', $form_ids) . ' - Blocks: ' . implode(',', $block_form_ids) . ' - Page Builder: ' . implode(',', $page_builder_form_ids));
+                  
                   $gf_pages[] = [
                       'ID' => $post['ID'],
                       'Type' => esc_html($post['post_type']),
@@ -86,16 +90,23 @@ class Form_Locator_For_Gravity_Forms {
     private function get_page_builder_form_ids($post_id, $content) {
         $form_ids = [];
         
+        error_log('Starting page builder detection for post ID: ' . $post_id);
+        
         // Check Elementor data
         $elementor_form_ids = $this->get_elementor_form_ids($post_id);
         if (!empty($elementor_form_ids)) {
             $form_ids = array_merge($form_ids, $elementor_form_ids);
+            error_log('Found Elementor forms: ' . implode(', ', $elementor_form_ids));
         }
         
         // Check Beaver Builder data
+        error_log('Checking Beaver Builder for post ID: ' . $post_id);
         $beaver_form_ids = $this->get_beaver_builder_form_ids($post_id, $content);
         if (!empty($beaver_form_ids)) {
             $form_ids = array_merge($form_ids, $beaver_form_ids);
+            error_log('Found Beaver Builder forms: ' . implode(', ', $beaver_form_ids));
+        } else {
+            error_log('No Beaver Builder forms found for post ID: ' . $post_id);
         }
         
         // Check Divi Builder data
@@ -116,6 +127,7 @@ class Form_Locator_For_Gravity_Forms {
             $form_ids = array_merge($form_ids, $addon_form_ids);
         }
         
+        error_log('Total page builder forms found: ' . count($form_ids));
         return array_unique($form_ids);
     }
 
@@ -230,6 +242,8 @@ class Form_Locator_For_Gravity_Forms {
         
         // If no forms found in structured data, check the rendered content
         if (empty($form_ids)) {
+            error_log('No forms found in Beaver Builder structured data, checking content sources');
+            
             // Try multiple content sources
             $content_sources = [
                 $content, // Original content passed in
@@ -237,15 +251,21 @@ class Form_Locator_For_Gravity_Forms {
                 get_post_field('post_content_filtered', $post_id), // Filtered content
             ];
             
-            foreach ($content_sources as $content_source) {
+            foreach ($content_sources as $index => $content_source) {
                 if (!empty($content_source)) {
+                    error_log('Checking content source ' . $index . ' for post ID ' . $post_id . ' (length: ' . strlen($content_source) . ')');
                     $beaver_form_ids = $this->get_beaver_builder_from_content($content_source);
                     if (!empty($beaver_form_ids)) {
+                        error_log('Found forms in content source ' . $index . ': ' . implode(', ', $beaver_form_ids));
                         $form_ids = array_merge($form_ids, $beaver_form_ids);
                         break; // Found forms, no need to check other sources
                     }
+                } else {
+                    error_log('Content source ' . $index . ' is empty for post ID ' . $post_id);
                 }
             }
+        } else {
+            error_log('Found forms in Beaver Builder structured data: ' . implode(', ', $form_ids));
         }
         
         return $form_ids;
