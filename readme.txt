@@ -1,6 +1,6 @@
 === Form Locator for Gravity Forms ===
 Author URI: https://gravityranger.com
-Plugin URI: https://gravityranger.com/plugins
+Plugin URI: https://github.com/chrisegg/form-locator-for-gravity-forms
 Donate link: https://gravityranger.com/donate
 Contributors: chrisegg
 Tags: Gravity Forms, Utility, Page Builder, Elementor, Beaver Builder, Avada, Divi, WPBakery
