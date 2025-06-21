@@ -43,16 +43,12 @@ class Form_Locator_For_Gravity_Forms {
   
           // Scan for Gravity Forms usage in content
           foreach ($results as $post) {
-              error_log('Scanning post ID: ' . $post['ID'] . ' - Title: ' . $post['post_title']);
-              
               $form_ids = $this->get_gravity_form_ids($post['post_content']);
               $block_form_ids = $this->get_gravity_block_form_ids($post['post_content']);
               $page_builder_form_ids = $this->get_page_builder_form_ids($post['ID'], $post['post_content']);
               $has_login_form = $this->has_gravity_login_form($post['post_content']);
   
               if (!empty($form_ids) || !empty($block_form_ids) || !empty($page_builder_form_ids) || $has_login_form) {
-                  error_log('Found forms in post ID: ' . $post['ID'] . ' - Shortcodes: ' . implode(',', $form_ids) . ' - Blocks: ' . implode(',', $block_form_ids) . ' - Page Builder: ' . implode(',', $page_builder_form_ids));
-                  
                   $gf_pages[] = [
                       'ID' => $post['ID'],
                       'Type' => esc_html($post['post_type']),
@@ -90,23 +86,16 @@ class Form_Locator_For_Gravity_Forms {
     private function get_page_builder_form_ids($post_id, $content) {
         $form_ids = [];
         
-        error_log('Starting page builder detection for post ID: ' . $post_id);
-        
         // Check Elementor data
         $elementor_form_ids = $this->get_elementor_form_ids($post_id);
         if (!empty($elementor_form_ids)) {
             $form_ids = array_merge($form_ids, $elementor_form_ids);
-            error_log('Found Elementor forms: ' . implode(', ', $elementor_form_ids));
         }
         
         // Check Beaver Builder data
-        error_log('Checking Beaver Builder for post ID: ' . $post_id);
         $beaver_form_ids = $this->get_beaver_builder_form_ids($post_id, $content);
         if (!empty($beaver_form_ids)) {
             $form_ids = array_merge($form_ids, $beaver_form_ids);
-            error_log('Found Beaver Builder forms: ' . implode(', ', $beaver_form_ids));
-        } else {
-            error_log('No Beaver Builder forms found for post ID: ' . $post_id);
         }
         
         // Check Divi Builder data
@@ -127,7 +116,6 @@ class Form_Locator_For_Gravity_Forms {
             $form_ids = array_merge($form_ids, $addon_form_ids);
         }
         
-        error_log('Total page builder forms found: ' . count($form_ids));
         return array_unique($form_ids);
     }
 
@@ -206,216 +194,49 @@ class Form_Locator_For_Gravity_Forms {
         // Check Beaver Builder post meta
         $beaver_data = get_post_meta($post_id, '_fl_builder_data', true);
         if (!empty($beaver_data)) {
-            error_log('Found Beaver Builder data for post ID: ' . $post_id);
-            
             // Handle case where get_post_meta returns an array
             if (is_array($beaver_data)) {
                 $data = $beaver_data;
-                error_log('Beaver Builder data is already an array with ' . count($data) . ' items');
             } else {
                 // Try to decode JSON string
                 $data = json_decode($beaver_data, true);
-                error_log('Beaver Builder data is JSON string, decoded to array with ' . (is_array($data) ? count($data) : 'invalid') . ' items');
             }
             
             if (is_array($data)) {
-                foreach ($data as $index => $node) {
-                    error_log('Processing Beaver Builder node ' . $index);
-                    
+                foreach ($data as $node) {
                     // Handle both object and array formats
                     if (is_object($node)) {
-                        error_log('Node ' . $index . ' is object, type: ' . (isset($node->type) ? $node->type : 'unknown'));
                         if (isset($node->type) && $node->type === 'module') {
-                            error_log('Node ' . $index . ' is a module');
                             if (isset($node->settings->form_id)) {
-                                error_log('Found form_id in node ' . $index . ': ' . $node->settings->form_id);
                                 $form_ids[] = intval($node->settings->form_id);
                             }
                             if (isset($node->settings->gravity_form_id)) {
-                                error_log('Found gravity_form_id in node ' . $index . ': ' . $node->settings->gravity_form_id);
                                 $form_ids[] = intval($node->settings->gravity_form_id);
                             }
                             // Check for widget-specific form IDs
                             if (isset($node->settings->{'widget-gform_widget'}->form_id)) {
-                                error_log('Found form_id in widget-gform_widget: ' . $node->settings->{'widget-gform_widget'}->form_id);
                                 $form_ids[] = intval($node->settings->{'widget-gform_widget'}->form_id);
-                            }
-                            // Let's also check for any settings that might contain form IDs
-                            if (isset($node->settings)) {
-                                error_log('Node ' . $index . ' settings: ' . json_encode($node->settings));
                             }
                         }
                     } elseif (is_array($node)) {
-                        error_log('Node ' . $index . ' is array, type: ' . (isset($node['type']) ? $node['type'] : 'unknown'));
                         if (isset($node['type']) && $node['type'] === 'module') {
-                            error_log('Node ' . $index . ' is a module');
                             if (isset($node['settings']['form_id'])) {
-                                error_log('Found form_id in node ' . $index . ': ' . $node['settings']['form_id']);
                                 $form_ids[] = intval($node['settings']['form_id']);
                             }
                             if (isset($node['settings']['gravity_form_id'])) {
-                                error_log('Found gravity_form_id in node ' . $index . ': ' . $node['settings']['gravity_form_id']);
                                 $form_ids[] = intval($node['settings']['gravity_form_id']);
                             }
                             // Check for widget-specific form IDs
                             if (isset($node['settings']['widget-gform_widget']['form_id'])) {
-                                error_log('Found form_id in widget-gform_widget: ' . $node['settings']['widget-gform_widget']['form_id']);
                                 $form_ids[] = intval($node['settings']['widget-gform_widget']['form_id']);
-                            }
-                            // Let's also check for any settings that might contain form IDs
-                            if (isset($node['settings'])) {
-                                error_log('Node ' . $index . ' settings: ' . json_encode($node['settings']));
                             }
                         }
                     }
                 }
-            } else {
-                error_log('Beaver Builder data could not be parsed as array');
             }
-        } else {
-            error_log('No Beaver Builder data found for post ID: ' . $post_id);
-        }
-        
-        // If no forms found in structured data, check the rendered content
-        if (empty($form_ids)) {
-            error_log('No forms found in Beaver Builder structured data, checking content sources');
-            
-            // Try multiple content sources
-            $content_sources = [
-                $content, // Original content passed in
-                get_post_field('post_content', $post_id), // Raw post content
-                get_post_field('post_content_filtered', $post_id), // Filtered content
-                $this->get_rendered_content($post_id), // Rendered content with filters applied
-            ];
-            
-            foreach ($content_sources as $index => $content_source) {
-                if (!empty($content_source)) {
-                    error_log('Checking content source ' . $index . ' for post ID ' . $post_id . ' (length: ' . strlen($content_source) . ')');
-                    // Let's also log a snippet of the content to see what we're working with
-                    if ($index === 0) {
-                        error_log('Content snippet: ' . substr($content_source, 0, 500));
-                    }
-                    $beaver_form_ids = $this->get_beaver_builder_from_content($content_source);
-                    if (!empty($beaver_form_ids)) {
-                        error_log('Found forms in content source ' . $index . ': ' . implode(', ', $beaver_form_ids));
-                        $form_ids = array_merge($form_ids, $beaver_form_ids);
-                        break; // Found forms, no need to check other sources
-                    }
-                } else {
-                    error_log('Content source ' . $index . ' is empty for post ID ' . $post_id);
-                }
-            }
-        } else {
-            error_log('Found forms in Beaver Builder structured data: ' . implode(', ', $form_ids));
         }
         
         return $form_ids;
-    }
-
-    // Extract form IDs from Beaver Builder rendered content
-    private function get_beaver_builder_from_content($content) {
-        $form_ids = [];
-        
-        // Test if error logging is working
-        error_log('TEST: Beaver Builder content check - Content length: ' . strlen($content));
-        
-        // Look for gform_widget class which indicates Gravity Forms widget
-        if (strpos($content, 'gform_widget') !== false) {
-            error_log('Found gform_widget in content for post');
-            
-            // Extract form IDs from the rendered HTML
-            preg_match_all('/id="gform_(\d+)"/', $content, $matches);
-            if (!empty($matches[1])) {
-                error_log('Found form IDs from id attribute: ' . implode(', ', $matches[1]));
-                $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
-            }
-            
-            // Also check for data-formid attribute
-            preg_match_all('/data-formid="(\d+)"/', $content, $matches);
-            if (!empty($matches[1])) {
-                error_log('Found form IDs from data-formid: ' . implode(', ', $matches[1]));
-                $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
-            }
-            
-            // Check for form_id in hidden inputs
-            preg_match_all('/name="gform_submit" value="(\d+)"/', $content, $matches);
-            if (!empty($matches[1])) {
-                error_log('Found form IDs from gform_submit: ' . implode(', ', $matches[1]));
-                $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
-            }
-        } else {
-            error_log('No gform_widget found in content');
-            
-            // Let's also check for other Beaver Builder indicators
-            if (strpos($content, 'fl-builder') !== false) {
-                error_log('Found fl-builder indicator in content');
-            }
-            if (strpos($content, '<!-- wp:fl-builder') !== false) {
-                error_log('Found Beaver Builder block in content');
-            }
-            
-            // Look for widget titles that indicate Gravity Forms
-            if (strpos($content, 'fl-builder-settings-title-text-wrap') !== false) {
-                error_log('Found Beaver Builder widget title in content');
-                
-                // Look for "Form" in the widget title
-                if (preg_match('/<span[^>]*class="[^"]*fl-builder-settings-title-text-wrap[^"]*"[^>]*>Form<\/span>/', $content)) {
-                    error_log('Found "Form" widget title in Beaver Builder');
-                    
-                    // Now look for form IDs in the widget settings
-                    preg_match_all('/"form_id"[\s]*:[\s]*["\']?(\d+)["\']?/', $content, $matches);
-                    if (!empty($matches[1])) {
-                        error_log('Found form IDs from widget settings: ' . implode(', ', $matches[1]));
-                        $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
-                    }
-                    
-                    // Also look for other form ID patterns in the widget data
-                    preg_match_all('/"id"[\s]*:[\s]*["\']?(\d+)["\']?/', $content, $matches);
-                    if (!empty($matches[1])) {
-                        error_log('Found potential form IDs from widget data: ' . implode(', ', $matches[1]));
-                        // We'll need to filter these to only include valid form IDs
-                        foreach ($matches[1] as $potential_id) {
-                            $form_id = intval($potential_id);
-                            if ($form_id > 0 && $form_id < 10000) { // Reasonable form ID range
-                                $form_ids[] = $form_id;
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Look for Gravity Forms specific patterns in Beaver Builder data
-            if (strpos($content, 'gravity') !== false || strpos($content, 'gform') !== false) {
-                error_log('Found gravity/gform indicators in content');
-                
-                // Look for form IDs in various patterns
-                preg_match_all('/"form_id"[\s]*:[\s]*["\']?(\d+)["\']?/', $content, $matches);
-                if (!empty($matches[1])) {
-                    error_log('Found form IDs from gravity patterns: ' . implode(', ', $matches[1]));
-                    $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
-                }
-            }
-        }
-        
-        return array_unique($form_ids);
-    }
-
-    // Get rendered content by applying WordPress filters
-    private function get_rendered_content($post_id) {
-        $post = get_post($post_id);
-        if (!$post) {
-            return '';
-        }
-        
-        // Apply content filters to get the rendered HTML
-        $rendered_content = apply_filters('the_content', $post->post_content);
-        
-        // Also try with Beaver Builder specific filters
-        if (class_exists('FLBuilderModel')) {
-            $rendered_content = apply_filters('fl_builder_render_content', $rendered_content, $post);
-        }
-        
-        return $rendered_content;
     }
 
     // Extract form IDs from Divi Builder data
@@ -428,12 +249,6 @@ class Form_Locator_For_Gravity_Forms {
             $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
         }
         
-        // Check Divi post meta
-        $divi_data = get_post_meta($post_id, '_et_pb_use_builder', true);
-        if ($divi_data === 'on') {
-            // Divi stores data in shortcodes, which we already checked above
-        }
-        
         return $form_ids;
     }
 
@@ -441,8 +256,7 @@ class Form_Locator_For_Gravity_Forms {
     private function get_wpbakery_form_ids($post_id, $content) {
         $form_ids = [];
         
-        // Check WPBakery shortcodes in content - but only if they're not standard shortcodes
-        // Look for WPBakery specific patterns
+        // Check WPBakery shortcodes in content
         preg_match_all('/\[vc_gravityform[^\]]*id=[\"\']?(\d+)[\"\']?/i', $content, $matches);
         if (!empty($matches[1])) {
             $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
