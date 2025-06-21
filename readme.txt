@@ -59,8 +59,15 @@ Form Locator for Gravity Forms is a powerful utility that scans your entire Word
 
 == Installation ==
 
+**Method 1: Traditional Installation**
 1. Upload the plugin files to the `/wp-content/plugins/form-locator-for-gravity-forms` directory, or install the plugin through the WordPress admin screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress
+
+**Method 2: Composer Installation**
+1. Add the plugin to your project: `composer require chrisegg/form-locator-for-gravity-forms`
+2. Activate the plugin through the 'Plugins' screen in WordPress
+
+**After Installation:**
 3. Navigate to **Forms → Form Locator** in the admin menu
 4. View your comprehensive form usage report
 
@@ -128,6 +135,10 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
   * Integrated changelog display from GitHub releases
   * One-click updates from WordPress admin
   * Cached API calls for optimal performance
+* **NEW**: Composer support
+  * Added composer.json for dependency management
+  * Plugin can now be installed via Composer
+  * Proper package metadata and licensing
 * **IMPROVED**: Menu integration
   * Moved to Forms submenu for better organization
   * Proper menu positioning and URL structure
