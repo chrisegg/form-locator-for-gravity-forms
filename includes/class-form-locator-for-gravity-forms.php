@@ -98,6 +98,12 @@ class Form_Locator_For_Gravity_Forms {
             $form_ids = array_merge($form_ids, $beaver_form_ids);
         }
         
+        // Check Avada Fusion Builder data
+        $avada_form_ids = $this->get_avada_fusion_builder_form_ids($post_id, $content);
+        if (!empty($avada_form_ids)) {
+            $form_ids = array_merge($form_ids, $avada_form_ids);
+        }
+        
         // Check Divi Builder data
         $divi_form_ids = $this->get_divi_builder_form_ids($post_id, $content);
         if (!empty($divi_form_ids)) {
@@ -285,6 +291,68 @@ class Form_Locator_For_Gravity_Forms {
         preg_match_all('/"type"[\s]*:[\s]*"module"[^}]*"form_id"[\s]*:[\s]*["\']?(\d+)["\']?/i', $content, $matches);
         if (!empty($matches[1])) {
             $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+        }
+        
+        return $form_ids;
+    }
+
+    // Extract form IDs from Avada Fusion Builder data
+    private function get_avada_fusion_builder_form_ids($post_id, $content) {
+        $form_ids = [];
+        
+        // Check Avada Fusion Builder post meta
+        $avada_data = get_post_meta($post_id, '_fusion_builder_content', true);
+        if (!empty($avada_data)) {
+            // Avada stores data as JSON string
+            $data = json_decode($avada_data, true);
+            if (is_array($data)) {
+                $form_ids = $this->parse_avada_elements($data);
+            }
+        }
+        
+        // Also check for Avada shortcodes in content
+        preg_match_all('/\[fusion_gravityform[^\]]*form_id=[\"\']?(\d+)[\"\']?/i', $content, $matches);
+        if (!empty($matches[1])) {
+            $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+        }
+        
+        // Check for Avada's alternative shortcode format
+        preg_match_all('/\[fusion_gravity_forms[^\]]*id=[\"\']?(\d+)[\"\']?/i', $content, $matches);
+        if (!empty($matches[1])) {
+            $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+        }
+        
+        return $form_ids;
+    }
+
+    // Parse Avada Fusion Builder elements recursively
+    private function parse_avada_elements($elements) {
+        $form_ids = [];
+        
+        if (!is_array($elements)) {
+            return $form_ids;
+        }
+        
+        foreach ($elements as $element) {
+            // Check for Gravity Forms element
+            if (isset($element['type']) && $element['type'] === 'fusion_gravityform') {
+                if (isset($element['params']['form_id'])) {
+                    $form_ids[] = intval($element['params']['form_id']);
+                }
+            }
+            
+            // Check for Gravity Forms element with different parameter name
+            if (isset($element['type']) && $element['type'] === 'fusion_gravity_forms') {
+                if (isset($element['params']['id'])) {
+                    $form_ids[] = intval($element['params']['id']);
+                }
+            }
+            
+            // Recursively check nested elements
+            if (isset($element['children']) && is_array($element['children'])) {
+                $nested_form_ids = $this->parse_avada_elements($element['children']);
+                $form_ids = array_merge($form_ids, $nested_form_ids);
+            }
         }
         
         return $form_ids;
