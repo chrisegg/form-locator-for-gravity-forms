@@ -235,6 +235,11 @@ class Form_Locator_For_Gravity_Forms {
                                 error_log('Found gravity_form_id in node ' . $index . ': ' . $node->settings->gravity_form_id);
                                 $form_ids[] = intval($node->settings->gravity_form_id);
                             }
+                            // Check for widget-specific form IDs
+                            if (isset($node->settings->{'widget-gform_widget'}->form_id)) {
+                                error_log('Found form_id in widget-gform_widget: ' . $node->settings->{'widget-gform_widget'}->form_id);
+                                $form_ids[] = intval($node->settings->{'widget-gform_widget'}->form_id);
+                            }
                             // Let's also check for any settings that might contain form IDs
                             if (isset($node->settings)) {
                                 error_log('Node ' . $index . ' settings: ' . json_encode($node->settings));
@@ -251,6 +256,11 @@ class Form_Locator_For_Gravity_Forms {
                             if (isset($node['settings']['gravity_form_id'])) {
                                 error_log('Found gravity_form_id in node ' . $index . ': ' . $node['settings']['gravity_form_id']);
                                 $form_ids[] = intval($node['settings']['gravity_form_id']);
+                            }
+                            // Check for widget-specific form IDs
+                            if (isset($node['settings']['widget-gform_widget']['form_id'])) {
+                                error_log('Found form_id in widget-gform_widget: ' . $node['settings']['widget-gform_widget']['form_id']);
+                                $form_ids[] = intval($node['settings']['widget-gform_widget']['form_id']);
                             }
                             // Let's also check for any settings that might contain form IDs
                             if (isset($node['settings'])) {
