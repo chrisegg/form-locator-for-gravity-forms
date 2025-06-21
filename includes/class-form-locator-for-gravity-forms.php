@@ -127,7 +127,14 @@ class Form_Locator_For_Gravity_Forms {
         // Check Elementor post meta
         $elementor_data = get_post_meta($post_id, '_elementor_data', true);
         if (!empty($elementor_data)) {
-            $data = json_decode($elementor_data, true);
+            // Handle case where get_post_meta returns an array
+            if (is_array($elementor_data)) {
+                $data = $elementor_data;
+            } else {
+                // Try to decode JSON string
+                $data = json_decode($elementor_data, true);
+            }
+            
             if (is_array($data)) {
                 $form_ids = $this->parse_elementor_widgets($data);
             }
@@ -187,15 +194,34 @@ class Form_Locator_For_Gravity_Forms {
         // Check Beaver Builder post meta
         $beaver_data = get_post_meta($post_id, '_fl_builder_data', true);
         if (!empty($beaver_data)) {
-            $data = json_decode($beaver_data, true);
+            // Handle case where get_post_meta returns an array
+            if (is_array($beaver_data)) {
+                $data = $beaver_data;
+            } else {
+                // Try to decode JSON string
+                $data = json_decode($beaver_data, true);
+            }
+            
             if (is_array($data)) {
                 foreach ($data as $node) {
-                    if (isset($node->type) && $node->type === 'module') {
-                        if (isset($node->settings->form_id)) {
-                            $form_ids[] = intval($node->settings->form_id);
+                    // Handle both object and array formats
+                    if (is_object($node)) {
+                        if (isset($node->type) && $node->type === 'module') {
+                            if (isset($node->settings->form_id)) {
+                                $form_ids[] = intval($node->settings->form_id);
+                            }
+                            if (isset($node->settings->gravity_form_id)) {
+                                $form_ids[] = intval($node->settings->gravity_form_id);
+                            }
                         }
-                        if (isset($node->settings->gravity_form_id)) {
-                            $form_ids[] = intval($node->settings->gravity_form_id);
+                    } elseif (is_array($node)) {
+                        if (isset($node['type']) && $node['type'] === 'module') {
+                            if (isset($node['settings']['form_id'])) {
+                                $form_ids[] = intval($node['settings']['form_id']);
+                            }
+                            if (isset($node['settings']['gravity_form_id'])) {
+                                $form_ids[] = intval($node['settings']['gravity_form_id']);
+                            }
                         }
                     }
                 }
