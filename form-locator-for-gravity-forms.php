@@ -9,7 +9,7 @@
  *
  * @wordpress-plugin
  * Plugin Name:   Form Locator for Gravity Forms
- * Plugin URI:    https://gravityranger.com/plugins
+ * Plugin URI:    https://github.com/chrisegg/form-locator-for-gravity-forms
  * Description:   Lists WordPress pages and posts that contain Gravity Forms block or shortcode, including those deleted, trashed, and inactive.
  * Version:       1.1.0
  * Author:        Chris Eggleston
