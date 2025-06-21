@@ -228,7 +228,47 @@ class Form_Locator_For_Gravity_Forms {
             }
         }
         
+        // If no forms found in structured data, check the rendered content
+        if (empty($form_ids)) {
+            $content = get_post_field('post_content', $post_id);
+            if (!empty($content)) {
+                // Look for Beaver Builder specific patterns in rendered content
+                $beaver_form_ids = $this->get_beaver_builder_from_content($content);
+                if (!empty($beaver_form_ids)) {
+                    $form_ids = array_merge($form_ids, $beaver_form_ids);
+                }
+            }
+        }
+        
         return $form_ids;
+    }
+
+    // Extract form IDs from Beaver Builder rendered content
+    private function get_beaver_builder_from_content($content) {
+        $form_ids = [];
+        
+        // Look for gform_widget class which indicates Gravity Forms widget
+        if (strpos($content, 'gform_widget') !== false) {
+            // Extract form IDs from the rendered HTML
+            preg_match_all('/id="gform_(\d+)"/', $content, $matches);
+            if (!empty($matches[1])) {
+                $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+            }
+            
+            // Also check for data-formid attribute
+            preg_match_all('/data-formid="(\d+)"/', $content, $matches);
+            if (!empty($matches[1])) {
+                $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+            }
+            
+            // Check for form_id in hidden inputs
+            preg_match_all('/name="gform_submit" value="(\d+)"/', $content, $matches);
+            if (!empty($matches[1])) {
+                $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
+            }
+        }
+        
+        return array_unique($form_ids);
     }
 
     // Extract form IDs from Divi Builder data
