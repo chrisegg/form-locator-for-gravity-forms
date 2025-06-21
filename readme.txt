@@ -122,6 +122,12 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
   * Proper output escaping (esc_html, esc_url)
   * Input sanitization and validation
   * Secure database queries
+* **NEW**: Automatic update notifications
+  * Custom update checker for GitHub releases
+  * Automatic version comparison and notifications
+  * Integrated changelog display from GitHub releases
+  * One-click updates from WordPress admin
+  * Cached API calls for optimal performance
 * **IMPROVED**: Menu integration
   * Moved to Forms submenu for better organization
   * Proper menu positioning and URL structure
