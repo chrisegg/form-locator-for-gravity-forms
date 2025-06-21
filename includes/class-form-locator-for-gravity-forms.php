@@ -6,7 +6,7 @@ if (!defined('ABSPATH')) {
 
 class Form_Locator_For_Gravity_Forms {
     public function __construct() {
-        add_action('admin_menu', [$this, 'add_gf_pages_menu']);
+        add_action('admin_menu', [$this, 'add_gf_pages_menu'], 999);
     }
 
     // Register the admin menu for the plugin
@@ -16,7 +16,7 @@ class Form_Locator_For_Gravity_Forms {
             'Form Locator', // Page title
             'Form Locator', // Menu title
             'manage_options', // Capability required to access
-            'gf-pages-list', // Menu slug
+            'gf_form_locator', // Menu slug
             [$this, 'list_gravity_forms_pages'] // Callback function to render page
         );
     }
