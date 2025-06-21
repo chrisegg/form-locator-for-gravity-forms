@@ -249,6 +249,7 @@ class Form_Locator_For_Gravity_Forms {
                 $content, // Original content passed in
                 get_post_field('post_content', $post_id), // Raw post content
                 get_post_field('post_content_filtered', $post_id), // Filtered content
+                $this->get_rendered_content($post_id), // Rendered content with filters applied
             ];
             
             foreach ($content_sources as $index => $content_source) {
@@ -275,7 +276,10 @@ class Form_Locator_For_Gravity_Forms {
     private function get_beaver_builder_from_content($content) {
         $form_ids = [];
         
-        // Debug: Log if we find gform_widget
+        // Test if error logging is working
+        error_log('TEST: Beaver Builder content check - Content length: ' . strlen($content));
+        
+        // Look for gform_widget class which indicates Gravity Forms widget
         if (strpos($content, 'gform_widget') !== false) {
             error_log('Found gform_widget in content for post');
             
@@ -301,9 +305,34 @@ class Form_Locator_For_Gravity_Forms {
             }
         } else {
             error_log('No gform_widget found in content');
+            // Let's also check for other Beaver Builder indicators
+            if (strpos($content, 'fl-builder') !== false) {
+                error_log('Found fl-builder indicator in content');
+            }
+            if (strpos($content, '<!-- wp:fl-builder') !== false) {
+                error_log('Found Beaver Builder block in content');
+            }
         }
         
         return array_unique($form_ids);
+    }
+
+    // Get rendered content by applying WordPress filters
+    private function get_rendered_content($post_id) {
+        $post = get_post($post_id);
+        if (!$post) {
+            return '';
+        }
+        
+        // Apply content filters to get the rendered HTML
+        $rendered_content = apply_filters('the_content', $post->post_content);
+        
+        // Also try with Beaver Builder specific filters
+        if (class_exists('FLBuilderModel')) {
+            $rendered_content = apply_filters('fl_builder_render_content', $rendered_content, $post);
+        }
+        
+        return $rendered_content;
     }
 
     // Extract form IDs from Divi Builder data
