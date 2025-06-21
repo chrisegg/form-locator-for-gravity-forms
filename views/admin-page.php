@@ -49,6 +49,7 @@
         background: rgba(255, 255, 255, 0.15);
         border-radius: 4px;
         border-left: 4px solid #4CAF50;
+        color: white;
     }
     
     .gf-locator-status strong {
@@ -58,7 +59,7 @@
 
 <div class='wrap'>
     <div class="gf-locator-header">
-        <h1>Gravity Forms Pages</h1>
+        <h1>Form Locator</h1>
         <div class="gf-locator-stats">
             <div class="gf-locator-stat">
                 <strong>Total Posts Scanned</strong>
