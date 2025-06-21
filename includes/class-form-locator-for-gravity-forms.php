@@ -110,7 +110,7 @@ class Form_Locator_For_Gravity_Forms {
             $form_ids = array_merge($form_ids, $wpbakery_form_ids);
         }
         
-        // Check for GravityKits and other add-ons in content
+        // Check for very specific add-on patterns that are unlikely to be shortcodes
         $addon_form_ids = $this->get_addon_form_ids($content);
         if (!empty($addon_form_ids)) {
             $form_ids = array_merge($form_ids, $addon_form_ids);
@@ -228,8 +228,9 @@ class Form_Locator_For_Gravity_Forms {
     private function get_wpbakery_form_ids($post_id, $content) {
         $form_ids = [];
         
-        // Check WPBakery shortcodes in content
-        preg_match_all('/\[gravityform[^\]]*id=[\"\']?(\d+)[\"\']?/i', $content, $matches);
+        // Check WPBakery shortcodes in content - but only if they're not standard shortcodes
+        // Look for WPBakery specific patterns
+        preg_match_all('/\[vc_gravityform[^\]]*id=[\"\']?(\d+)[\"\']?/i', $content, $matches);
         if (!empty($matches[1])) {
             $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
         }
@@ -241,20 +242,20 @@ class Form_Locator_For_Gravity_Forms {
     private function get_addon_form_ids($content) {
         $form_ids = [];
         
-        // Check for GravityKits patterns
+        // Check for GravityKits patterns in JSON/object contexts
         preg_match_all('/gravitykits[^}]*form_id[^}]*:[\s]*["\']?(\d+)["\']?/i', $content, $matches);
         if (!empty($matches[1])) {
             $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
         }
         
-        // Check for custom JSON patterns
-        preg_match_all('/"form_id"[\s]*:[\s]*["\']?(\d+)["\']?/i', $content, $matches);
+        // Check for very specific widget patterns that indicate page builder usage
+        preg_match_all('/"widgetType"[\s]*:[\s]*"gravity[^"]*"[^}]*"form_id"[\s]*:[\s]*["\']?(\d+)["\']?/i', $content, $matches);
         if (!empty($matches[1])) {
             $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
         }
         
-        // Check for Gravity Forms embed patterns
-        preg_match_all('/gravity_forms[^}]*id[\s]*:[\s]*["\']?(\d+)["\']?/i', $content, $matches);
+        // Check for module patterns that indicate page builder usage
+        preg_match_all('/"type"[\s]*:[\s]*"module"[^}]*"form_id"[\s]*:[\s]*["\']?(\d+)["\']?/i', $content, $matches);
         if (!empty($matches[1])) {
             $form_ids = array_merge($form_ids, array_map('intval', $matches[1]));
         }
