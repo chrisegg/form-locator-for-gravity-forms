@@ -206,38 +206,64 @@ class Form_Locator_For_Gravity_Forms {
         // Check Beaver Builder post meta
         $beaver_data = get_post_meta($post_id, '_fl_builder_data', true);
         if (!empty($beaver_data)) {
+            error_log('Found Beaver Builder data for post ID: ' . $post_id);
+            
             // Handle case where get_post_meta returns an array
             if (is_array($beaver_data)) {
                 $data = $beaver_data;
+                error_log('Beaver Builder data is already an array with ' . count($data) . ' items');
             } else {
                 // Try to decode JSON string
                 $data = json_decode($beaver_data, true);
+                error_log('Beaver Builder data is JSON string, decoded to array with ' . (is_array($data) ? count($data) : 'invalid') . ' items');
             }
             
             if (is_array($data)) {
-                foreach ($data as $node) {
+                foreach ($data as $index => $node) {
+                    error_log('Processing Beaver Builder node ' . $index);
+                    
                     // Handle both object and array formats
                     if (is_object($node)) {
+                        error_log('Node ' . $index . ' is object, type: ' . (isset($node->type) ? $node->type : 'unknown'));
                         if (isset($node->type) && $node->type === 'module') {
+                            error_log('Node ' . $index . ' is a module');
                             if (isset($node->settings->form_id)) {
+                                error_log('Found form_id in node ' . $index . ': ' . $node->settings->form_id);
                                 $form_ids[] = intval($node->settings->form_id);
                             }
                             if (isset($node->settings->gravity_form_id)) {
+                                error_log('Found gravity_form_id in node ' . $index . ': ' . $node->settings->gravity_form_id);
                                 $form_ids[] = intval($node->settings->gravity_form_id);
+                            }
+                            // Let's also check for any settings that might contain form IDs
+                            if (isset($node->settings)) {
+                                error_log('Node ' . $index . ' settings: ' . json_encode($node->settings));
                             }
                         }
                     } elseif (is_array($node)) {
+                        error_log('Node ' . $index . ' is array, type: ' . (isset($node['type']) ? $node['type'] : 'unknown'));
                         if (isset($node['type']) && $node['type'] === 'module') {
+                            error_log('Node ' . $index . ' is a module');
                             if (isset($node['settings']['form_id'])) {
+                                error_log('Found form_id in node ' . $index . ': ' . $node['settings']['form_id']);
                                 $form_ids[] = intval($node['settings']['form_id']);
                             }
                             if (isset($node['settings']['gravity_form_id'])) {
+                                error_log('Found gravity_form_id in node ' . $index . ': ' . $node['settings']['gravity_form_id']);
                                 $form_ids[] = intval($node['settings']['gravity_form_id']);
+                            }
+                            // Let's also check for any settings that might contain form IDs
+                            if (isset($node['settings'])) {
+                                error_log('Node ' . $index . ' settings: ' . json_encode($node['settings']));
                             }
                         }
                     }
                 }
+            } else {
+                error_log('Beaver Builder data could not be parsed as array');
             }
+        } else {
+            error_log('No Beaver Builder data found for post ID: ' . $post_id);
         }
         
         // If no forms found in structured data, check the rendered content
@@ -255,6 +281,10 @@ class Form_Locator_For_Gravity_Forms {
             foreach ($content_sources as $index => $content_source) {
                 if (!empty($content_source)) {
                     error_log('Checking content source ' . $index . ' for post ID ' . $post_id . ' (length: ' . strlen($content_source) . ')');
+                    // Let's also log a snippet of the content to see what we're working with
+                    if ($index === 0) {
+                        error_log('Content snippet: ' . substr($content_source, 0, 500));
+                    }
                     $beaver_form_ids = $this->get_beaver_builder_from_content($content_source);
                     if (!empty($beaver_form_ids)) {
                         error_log('Found forms in content source ' . $index . ': ' . implode(', ', $beaver_form_ids));
