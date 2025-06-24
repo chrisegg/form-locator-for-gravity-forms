@@ -116,10 +116,6 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
   * Avada Fusion Builder element and shortcode detection
   * Divi Builder module and shortcode detection
   * WPBakery Page Builder module detection
-* **NEW**: Enhanced form detection methods
-  * Gutenberg block form ID detection
-  * Login form detection
-  * Generic add-on pattern matching
 * **NEW**: Improved admin interface
   * Modern gradient header design
   * Professional statistics display
