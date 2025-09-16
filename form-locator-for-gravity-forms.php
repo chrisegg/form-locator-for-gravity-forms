@@ -40,7 +40,7 @@ define('GFLOCATOR_GITHUB_REPO', 'chrisegg/form-locator-for-gravity-forms');
 define('GFLOCATOR_GITHUB_BRANCH', 'main');
 
 // Update checker debug mode (set to true for testing)
-define('GFLOCATOR_UPDATE_DEBUG', false);
+define('GFLOCATOR_UPDATE_DEBUG', true);
 
 // Main Plugin File
 require_once plugin_dir_path(__FILE__) . 'includes/class-form-locator-for-gravity-forms.php';
@@ -65,6 +65,35 @@ function gflocator_init_update_checker() {
     add_filter('pre_set_site_transient_update_plugins', 'gflocator_check_for_update');
     add_filter('plugins_api', 'gflocator_plugin_info', 10, 3);
     add_action('in_plugin_update_message-' . plugin_basename(__FILE__), 'gflocator_update_message');
+    
+    // Add admin action to manually check for updates (for debugging)
+    if (GFLOCATOR_UPDATE_DEBUG && isset($_GET['gflocator_force_update_check'])) {
+        add_action('admin_init', 'gflocator_force_update_check');
+    }
+}
+
+/**
+ * Force update check for debugging (only when debug mode is enabled)
+ */
+function gflocator_force_update_check() {
+    if (!GFLOCATOR_UPDATE_DEBUG || !current_user_can('update_plugins')) {
+        return;
+    }
+    
+    // Clear all update-related transients
+    delete_transient('gflocator_latest_version');
+    delete_transient('gflocator_latest_version_error');
+    delete_transient('gflocator_latest_date');
+    delete_transient('gflocator_changelog');
+    
+    // Force WordPress to check for updates
+    delete_site_transient('update_plugins');
+    
+    error_log('Form Locator: Forced update check triggered - all caches cleared');
+    
+    // Redirect back to plugins page
+    wp_redirect(admin_url('plugins.php?gflocator_debug=cleared'));
+    exit;
 }
 
 /**
@@ -72,11 +101,17 @@ function gflocator_init_update_checker() {
  */
 function gflocator_check_for_update($transient) {
     if (empty($transient->checked)) {
+        if (GFLOCATOR_UPDATE_DEBUG) {
+            error_log('Form Locator Update Check: transient->checked is empty');
+        }
         return $transient;
     }
     
     // Skip if we recently had an API error
     if (get_transient('gflocator_latest_version_error')) {
+        if (GFLOCATOR_UPDATE_DEBUG) {
+            error_log('Form Locator Update Check: Skipping due to recent API error');
+        }
         return $transient;
     }
     
@@ -86,8 +121,16 @@ function gflocator_check_for_update($transient) {
     // Get latest version from GitHub
     $latest_version = gflocator_get_latest_version();
     
+    if (GFLOCATOR_UPDATE_DEBUG) {
+        error_log('Form Locator Update Check: Current=' . $current_version . ', Latest=' . ($latest_version ?: 'false'));
+    }
+    
     if ($latest_version && version_compare($latest_version, $current_version, '>')) {
         $plugin_slug = plugin_basename(__FILE__);
+        
+        if (GFLOCATOR_UPDATE_DEBUG) {
+            error_log('Form Locator Update Check: Update available! Adding to transient for ' . $plugin_slug);
+        }
         
         $transient->response[$plugin_slug] = (object) array(
             'slug' => 'form-locator-for-gravity-forms',
@@ -104,6 +147,10 @@ function gflocator_check_for_update($transient) {
             ),
             'upgrade_notice' => 'This update includes important security and feature improvements.'
         );
+    } else {
+        if (GFLOCATOR_UPDATE_DEBUG) {
+            error_log('Form Locator Update Check: No update needed or API failed');
+        }
     }
     
     return $transient;
