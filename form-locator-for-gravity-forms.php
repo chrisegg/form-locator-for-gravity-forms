@@ -18,6 +18,7 @@
  * Domain Path:   /languages
  * License:       GPLv2
  * License URI:   https://www.gnu.org/licenses/gpl-2.0.html
+ * Update URI:    https://github.com/chrisegg/form-locator-for-gravity-forms
  *
  * You should have received a copy of the GNU General Public License
  * along with Form Locator for Gravity Forms. If not, see <https://www.gnu.org/licenses/gpl-2.0.html/>.
@@ -37,6 +38,9 @@ define('GFLOCATOR_PLUGIN_URL', plugin_dir_url(__FILE__));
 // GitHub repository information
 define('GFLOCATOR_GITHUB_REPO', 'chrisegg/form-locator-for-gravity-forms');
 define('GFLOCATOR_GITHUB_BRANCH', 'main');
+
+// Update checker debug mode (set to true for testing)
+define('GFLOCATOR_UPDATE_DEBUG', false);
 
 // Main Plugin File
 require_once plugin_dir_path(__FILE__) . 'includes/class-form-locator-for-gravity-forms.php';
@@ -71,6 +75,11 @@ function gflocator_check_for_update($transient) {
         return $transient;
     }
     
+    // Skip if we recently had an API error
+    if (get_transient('gflocator_latest_version_error')) {
+        return $transient;
+    }
+    
     // Get current version
     $current_version = GFLOCATOR_VERSION;
     
@@ -92,7 +101,8 @@ function gflocator_check_for_update($transient) {
             'sections' => array(
                 'description' => 'Comprehensive Gravity Forms detection across WordPress pages, posts, and page builders.',
                 'changelog' => gflocator_get_changelog()
-            )
+            ),
+            'upgrade_notice' => 'This update includes important security and feature improvements.'
         );
     }
     
@@ -139,6 +149,48 @@ function gflocator_update_message() {
 }
 
 /**
+ * Make a GitHub API request with error handling and retry logic
+ */
+function gflocator_github_api_request($endpoint) {
+    $api_url = 'https://api.github.com/repos/' . GFLOCATOR_GITHUB_REPO . '/' . $endpoint;
+    
+    $response = wp_remote_get($api_url, array(
+        'timeout' => 15,
+        'headers' => array(
+            'User-Agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url'),
+            'Accept' => 'application/vnd.github.v3+json'
+        )
+    ));
+    
+    if (is_wp_error($response)) {
+        if (GFLOCATOR_UPDATE_DEBUG) {
+            error_log('Form Locator GitHub API Error: ' . $response->get_error_message());
+        }
+        return new WP_Error('api_error', $response->get_error_message());
+    }
+    
+    $response_code = wp_remote_retrieve_response_code($response);
+    if ($response_code !== 200) {
+        if (GFLOCATOR_UPDATE_DEBUG) {
+            error_log('Form Locator GitHub API HTTP Error: ' . $response_code);
+        }
+        return new WP_Error('http_error', 'HTTP ' . $response_code);
+    }
+    
+    $body = wp_remote_retrieve_body($response);
+    $data = json_decode($body, true);
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        if (GFLOCATOR_UPDATE_DEBUG) {
+            error_log('Form Locator GitHub API: JSON decode error');
+        }
+        return new WP_Error('json_error', 'Invalid JSON response');
+    }
+    
+    return $data;
+}
+
+/**
  * Get latest version from GitHub
  */
 function gflocator_get_latest_version() {
@@ -149,28 +201,37 @@ function gflocator_get_latest_version() {
         return $cached_version;
     }
     
-    $api_url = 'https://api.github.com/repos/' . GFLOCATOR_GITHUB_REPO . '/releases/latest';
-    
-    $response = wp_remote_get($api_url, array(
-        'timeout' => 15,
-        'headers' => array(
-            'User-Agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url')
-        )
-    ));
-    
-    if (is_wp_error($response)) {
+    // Skip if we recently had an API error
+    if (get_transient('gflocator_latest_version_error')) {
         return false;
     }
     
-    $body = wp_remote_retrieve_body($response);
-    $data = json_decode($body, true);
+    $data = gflocator_github_api_request('releases/latest');
+    
+    if (is_wp_error($data)) {
+        // Cache error for 30 minutes to avoid repeated failed requests
+        set_transient('gflocator_latest_version_error', true, 30 * MINUTE_IN_SECONDS);
+        return false;
+    }
     
     if (empty($data) || !isset($data['tag_name'])) {
+        if (GFLOCATOR_UPDATE_DEBUG) {
+            error_log('Form Locator GitHub API: Invalid response format');
+        }
+        set_transient('gflocator_latest_version_error', true, 30 * MINUTE_IN_SECONDS);
         return false;
     }
     
     // Remove 'v' prefix if present
     $version = ltrim($data['tag_name'], 'v');
+    
+    // Validate version format
+    if (!preg_match('/^\d+\.\d+\.\d+.*$/', $version)) {
+        if (GFLOCATOR_UPDATE_DEBUG) {
+            error_log('Form Locator GitHub API: Invalid version format: ' . $version);
+        }
+        return false;
+    }
     
     // Cache for 12 hours
     set_transient($cache_key, $version, 12 * HOUR_IN_SECONDS);
@@ -189,23 +250,9 @@ function gflocator_get_latest_release_date() {
         return $cached_date;
     }
     
-    $api_url = 'https://api.github.com/repos/' . GFLOCATOR_GITHUB_REPO . '/releases/latest';
+    $data = gflocator_github_api_request('releases/latest');
     
-    $response = wp_remote_get($api_url, array(
-        'timeout' => 15,
-        'headers' => array(
-            'User-Agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url')
-        )
-    ));
-    
-    if (is_wp_error($response)) {
-        return false;
-    }
-    
-    $body = wp_remote_retrieve_body($response);
-    $data = json_decode($body, true);
-    
-    if (empty($data) || !isset($data['published_at'])) {
+    if (is_wp_error($data) || empty($data) || !isset($data['published_at'])) {
         return false;
     }
     
@@ -228,27 +275,13 @@ function gflocator_get_changelog() {
         return $cached_changelog;
     }
     
-    $api_url = 'https://api.github.com/repos/' . GFLOCATOR_GITHUB_REPO . '/releases/latest';
+    $data = gflocator_github_api_request('releases/latest');
     
-    $response = wp_remote_get($api_url, array(
-        'timeout' => 15,
-        'headers' => array(
-            'User-Agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url')
-        )
-    ));
-    
-    if (is_wp_error($response)) {
+    if (is_wp_error($data) || empty($data) || !isset($data['body'])) {
         return 'Changelog not available.';
     }
     
-    $body = wp_remote_retrieve_body($response);
-    $data = json_decode($body, true);
-    
-    if (empty($data) || !isset($data['body'])) {
-        return 'Changelog not available.';
-    }
-    
-    $changelog = $data['body'];
+    $changelog = wp_kses_post($data['body']); // Sanitize HTML content
     
     // Cache for 12 hours
     set_transient($cache_key, $changelog, 12 * HOUR_IN_SECONDS);
