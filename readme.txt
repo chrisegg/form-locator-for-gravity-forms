@@ -142,8 +142,8 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
   * Eliminated unnecessary GF prefixes
   * Cleaner class structure and naming
   * Better separation of concerns
-* **BREAKING**: Requires Gravity Forms 2.4+
-  * This version requires a minimum of Gravity Forms 2.4
+* **BREAKING**: Requires Gravity Forms 2.5+
+  * This version requires a minimum of Gravity Forms 2.5
   * Older versions of Gravity Forms are no longer supported
 
 = 1.1.0: June 20, 2025 =
