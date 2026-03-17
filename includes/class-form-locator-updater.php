@@ -45,6 +45,15 @@ class Form_Locator_Updater {
             'in_plugin_update_message-' . plugin_basename(FORM_LOCATOR_PLUGIN_FILE),
             array(__CLASS__, 'update_message')
         );
+        add_action('load-update-core.php', array(__CLASS__, 'clear_release_cache'));
+    }
+
+    /**
+     * Clear cached release data when Updates page loads.
+     * Ensures admins see new releases immediately when they check for updates.
+     */
+    public static function clear_release_cache() {
+        delete_transient(self::CACHE_KEY);
     }
 
     /**
