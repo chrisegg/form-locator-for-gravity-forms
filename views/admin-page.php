@@ -1,8 +1,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
 <style>
-    /* Hide framework page title - we show our own styled title with icon below */
-    #wpbody-content > h1:first-child {
+    /* Hide GF framework page title (h2.gf_admin_page_title) - keep only our h1 with search icon */
+    .gf_admin_page_title {
         display: none !important;
     }
     
@@ -166,11 +167,11 @@
         border-radius: 8px;
         padding: 20px;
         box-shadow: 0 2px 4px rgba(0,0,0,.05);
-        height: 350px;
+        min-height: 350px;
         position: relative;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
+        overflow: visible;
     }
     
     .chart-container canvas {
@@ -338,6 +339,50 @@
         font-size: 16px;
     }
     
+    /* Pie chart legend - 3 columns (custom HTML legend) */
+    .forms-chart-legend {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px 20px;
+        margin: 15px 0 0 0;
+        padding: 0 4px 0 0;
+        list-style: none;
+    }
+    
+    .forms-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #646970;
+        font-size: 12px;
+    }
+    
+    .forms-legend-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    
+    .forms-legend-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    @media (max-width: 1200px) {
+        .forms-chart-legend {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .forms-chart-legend {
+            grid-template-columns: 1fr;
+        }
+    }
+    
     /* Responsive Design */
     @media (max-width: 1200px) {
         .dashboard-container {
@@ -425,7 +470,7 @@
                 
                 <!-- Line Chart -->
                 <div class="chart-container">
-                    <div class="chart-title"><?php esc_html_e('Form Entries Over Time', 'form-locator-for-gravity-forms'); ?></div>
+                    <div class="chart-title"><?php esc_html_e('Embedded Form Entries Over Time', 'form-locator-for-gravity-forms'); ?></div>
                     <div style="position: relative; height: 280px; width: 100%;">
                         <canvas id="entriesChart"></canvas>
                     </div>
@@ -435,9 +480,10 @@
             <!-- Right Column - Pie Chart -->
             <div class="chart-container">
                 <div class="chart-title"><?php esc_html_e('Entries by Form', 'form-locator-for-gravity-forms'); ?></div>
-                <div style="position: relative; height: 280px; width: 100%;">
+                <div id="formsChartWrapper" style="position: relative; height: 280px; width: 100%;">
                     <canvas id="formsChart"></canvas>
                 </div>
+                <div id="formsChartLegend" class="forms-chart-legend"></div>
             </div>
         </div>
     </div>
@@ -550,6 +596,9 @@
 </div>
 
 <script>
+// Register Chart.js plugins
+Chart.register(ChartDataLabels);
+
 document.addEventListener('DOMContentLoaded', function() {
     // Tab functionality
     const tabs = document.querySelectorAll('.nav-tab');
@@ -576,41 +625,55 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Chart data from PHP
-    const monthlyData = <?php echo json_encode($monthly_stats ?? ['labels' => [], 'data' => []]); ?>;
+    const monthlyData = <?php echo json_encode($monthly_stats ?? ['labels' => [], 'data' => [], 'datasets' => []]); ?>;
     const formData = <?php echo json_encode($form_stats ?? ['labels' => [], 'data' => []]); ?>;
+    
+    // Debug info (only visible in browser console)
+    <?php if (defined('WP_DEBUG') && WP_DEBUG): ?>
+    console.log('Embedded forms detected:', <?php echo json_encode($embedded_form_ids ?? []); ?>);
+    console.log('Monthly data:', monthlyData);
+    <?php endif; ?>
     
     // Line Chart Configuration
     const entriesCtx = document.getElementById('entriesChart');
     if (entriesCtx) {
-        if (monthlyData.labels && monthlyData.labels.length > 0) {
+        if (monthlyData.labels && monthlyData.labels.length > 0 && monthlyData.datasets && monthlyData.datasets.length > 0) {
             new Chart(entriesCtx, {
                 type: 'line',
                 data: {
                     labels: monthlyData.labels,
-                    datasets: [{
-                        label: '<?php esc_html_e('Form Entries', 'form-locator-for-gravity-forms'); ?>',
-                        data: monthlyData.data,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#10b981',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        pointHoverRadius: 7
-                    }]
+                    datasets: monthlyData.datasets
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: {
                         intersect: false,
+                        mode: 'index'
                     },
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                usePointStyle: true,
+                                color: '#646970',
+                                font: {
+                                    size: 11
+                                },
+                                boxWidth: 12,
+                                boxHeight: 12
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1
                         }
                     },
                     scales: {
@@ -620,7 +683,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 color: 'rgba(0, 0, 0, 0.05)'
                             },
                             ticks: {
-                                color: '#646970'
+                                color: '#646970',
+                                precision: 0
                             }
                         },
                         x: {
@@ -630,11 +694,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             ticks: {
                                 color: '#646970'
                             }
-                        }
-                    },
-                    elements: {
-                        point: {
-                            hoverBackgroundColor: '#10b981'
                         }
                     },
                     onResize: function(chart, size) {
@@ -651,13 +710,19 @@ document.addEventListener('DOMContentLoaded', function() {
             ctx.font = '16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
             ctx.fillStyle = '#646970';
             ctx.textAlign = 'center';
-            ctx.fillText('<?php esc_html_e('No entry data available', 'form-locator-for-gravity-forms'); ?>', entriesCtx.width/2, entriesCtx.height/2);
+            const message = monthlyData.labels && monthlyData.labels.length > 0 ? 
+                '<?php esc_html_e('No embedded form entries found', 'form-locator-for-gravity-forms'); ?>' : 
+                '<?php esc_html_e('No embedded forms detected', 'form-locator-for-gravity-forms'); ?>';
+            ctx.fillText(message, entriesCtx.width/2, entriesCtx.height/2);
         }
     }
     
     // Pie Chart Configuration
     const formsCtx = document.getElementById('formsChart');
     if (formsCtx && formData.labels.length > 0) {
+        // Calculate total for percentage calculations
+        const total = formData.data.reduce((sum, value) => sum + value, 0);
+        
         new Chart(formsCtx, {
             type: 'doughnut',
             data: {
@@ -676,7 +741,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         '#ec4899',
                         '#6366f1'
                     ],
-                    borderWidth: 0,
+                    borderWidth: 2,
+                    borderColor: '#fff',
                     hoverOffset: 4
                 }]
             },
@@ -685,14 +751,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 15,
-                            usePointStyle: true,
-                            color: '#646970',
-                            font: {
-                                size: 12
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed;
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} entries (${percentage}%)`;
                             }
+                        }
+                    },
+                    datalabels: {
+                        color: function(context) {
+                            // Use white text for darker backgrounds, dark text for lighter ones
+                            const bgColor = context.dataset.backgroundColor[context.dataIndex];
+                            return '#fff';
+                        },
+                        font: {
+                            weight: 'bold',
+                            size: function(context) {
+                                const percentage = ((context.parsed / total) * 100);
+                                // Smaller font for smaller segments
+                                return percentage > 10 ? 12 : percentage > 5 ? 10 : 9;
+                            }
+                        },
+                        formatter: function(value, context) {
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            // Show percentage if slice is large enough (>3%)
+                            return percentage > 3 ? `${percentage}%` : '';
+                        },
+                        anchor: function(context) {
+                            const percentage = ((context.parsed / total) * 100);
+                            // For smaller segments, anchor to end for better visibility
+                            return percentage > 8 ? 'center' : 'end';
+                        },
+                        align: function(context) {
+                            const percentage = ((context.parsed / total) * 100);
+                            return percentage > 8 ? 'center' : 'end';
+                        },
+                        offset: function(context) {
+                            const percentage = ((context.parsed / total) * 100);
+                            // Add offset for smaller segments to move labels outside
+                            return percentage > 8 ? 0 : 10;
                         }
                     }
                 },
@@ -705,6 +812,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+        
+        // Populate custom 3-column legend
+        const legendEl = document.getElementById('formsChartLegend');
+        if (legendEl && formData.labels.length > 0) {
+            const legendTotal = formData.data.reduce((sum, val) => sum + val, 0);
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'];
+            const escapeHtml = (str) => {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            };
+            legendEl.innerHTML = formData.labels.map((label, i) => {
+                const pct = legendTotal > 0 ? ((formData.data[i] / legendTotal) * 100).toFixed(1) : '0';
+                const color = colors[i % colors.length];
+                return `<div class="forms-legend-item"><span class="forms-legend-dot" style="background-color:${color}"></span><span class="forms-legend-label">${escapeHtml(label)} (${pct}%)</span></div>`;
+            }).join('');
+        }
     } else if (formsCtx) {
         // Show message when no data
         const ctx = formsCtx.getContext('2d');
