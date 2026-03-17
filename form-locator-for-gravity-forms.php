@@ -57,6 +57,7 @@ define('FORM_LOCATOR_VERSION', '2.0.0');
 define('FORM_LOCATOR_PLUGIN_FILE', __FILE__);
 define('FORM_LOCATOR_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FORM_LOCATOR_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('FORM_LOCATOR_GITHUB_REPO', 'chrisegg/form-locator-for-gravity-forms');
 
 /**
  * Check if Gravity Forms is active and load the add-on
@@ -112,4 +113,8 @@ function form_locator_check_gf_dependency() {
 
 // Check dependency on plugins_loaded
 add_action('plugins_loaded', 'form_locator_check_gf_dependency');
+
+// GitHub update checker
+require_once plugin_dir_path(__FILE__) . 'includes/class-form-locator-updater.php';
+add_action('init', array('Form_Locator_Updater', 'init'));
 

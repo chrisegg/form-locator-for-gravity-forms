@@ -133,9 +133,11 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
   * Built-in settings framework integration
   * Enhanced security patterns
   * Better internationalization support
-* **REMOVED**: Custom GitHub update system
-  * Simplified codebase by removing custom update checker
-  * Focus on core functionality and framework integration
+* **RESTORED**: Custom GitHub update system
+  * Automatic update notifications from GitHub releases
+  * One-click updates from WordPress admin
+  * Cached API calls (12-hour transient)
+  * Integrated changelog display from GitHub release notes
 * **IMPROVED**: Code organization
   * Eliminated unnecessary GF prefixes
   * Cleaner class structure and naming
@@ -187,7 +189,7 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
 == Upgrade Notice ==
 
 = 2.0.0 =
-MAJOR UPDATE: Complete refactor to official Gravity Forms Add-On Framework. This version requires Gravity Forms 2.4+ and provides native GF integration, enhanced security, and improved admin interface. The custom update system has been removed for a cleaner, more focused codebase.
+MAJOR UPDATE: Complete refactor to official Gravity Forms Add-On Framework. This version requires Gravity Forms 2.4+ and provides native GF integration, enhanced security, improved admin interface, and automatic updates from GitHub releases.
 
 = 1.1.0 =
 This major update adds comprehensive page builder support, enhanced security, and a modern interface. The plugin now detects forms across all major page builders and provides a much more detailed analysis of your Gravity Forms usage.
