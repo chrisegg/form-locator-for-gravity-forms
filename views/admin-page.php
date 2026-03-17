@@ -18,38 +18,107 @@
     .stat-blocks {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 15px;
+        gap: 12px;
+        margin-bottom: 15px;
     }
     
     .stat-block {
-        background: #fff;
-        border: 1px solid #c3c4c7;
-        border-radius: 8px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,.05);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 12px;
+        padding: 16px 20px;
+        text-align: left;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        min-height: 80px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    
+    .stat-block:nth-child(2) {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        box-shadow: 0 4px 15px rgba(240, 147, 251, 0.2);
     }
     
     .stat-block:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,.1);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stat-block:nth-child(2):hover {
+        box-shadow: 0 8px 25px rgba(240, 147, 251, 0.3);
+    }
+    
+    .stat-block::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 60px;
+        height: 60px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transform: translate(20px, -20px);
+    }
+    
+    .stat-block::after {
+        content: '';
+        position: absolute;
+        bottom: 8px;
+        right: 12px;
+        width: 20px;
+        height: 20px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 4px;
+        z-index: 1;
+    }
+    
+    .stat-block:first-child::after {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z'/%3E%3C/svg%3E");
+        background-size: 14px;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-color: transparent;
+    }
+    
+    .stat-block:nth-child(2)::after {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E");
+        background-size: 14px;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-color: transparent;
     }
     
     .stat-number {
-        font-size: 28px;
+        font-size: 24px;
         font-weight: 700;
-        color: #1d2327;
+        color: #ffffff;
         line-height: 1;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
+        position: relative;
+        z-index: 2;
     }
     
     .stat-label {
-        font-size: 13px;
-        color: #646970;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.9);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.8px;
+        font-weight: 600;
+        position: relative;
+        z-index: 2;
+        margin-bottom: 2px;
+    }
+    
+    .stat-change {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.7);
         font-weight: 500;
+        position: relative;
+        z-index: 2;
     }
     
     .chart-container {
@@ -58,14 +127,16 @@
         border-radius: 8px;
         padding: 20px;
         box-shadow: 0 2px 4px rgba(0,0,0,.05);
-        min-height: 300px;
+        height: 350px;
         position: relative;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
     
     .chart-container canvas {
-        flex: 1;
+        max-height: 280px !important;
+        max-width: 100% !important;
     }
     
     .chart-title {
@@ -238,10 +309,24 @@
     @media (max-width: 768px) {
         .stat-blocks {
             grid-template-columns: 1fr;
+            gap: 10px;
         }
         
         .chart-container {
-            min-height: 250px;
+            height: 300px;
+        }
+        
+        .stat-block {
+            min-height: 70px;
+            padding: 14px 18px;
+        }
+        
+        .stat-number {
+            font-size: 20px;
+        }
+        
+        .stat-label {
+            font-size: 10px;
         }
     }
 </style>
@@ -274,24 +359,30 @@
                     <div class="stat-block">
                         <div class="stat-number"><?php echo esc_html($total_posts_scanned); ?></div>
                         <div class="stat-label"><?php esc_html_e('Posts Scanned', 'form-locator-for-gravity-forms'); ?></div>
+                        <div class="stat-change">+100%</div>
                     </div>
                     <div class="stat-block">
                         <div class="stat-number"><?php echo esc_html(count($gf_pages)); ?></div>
                         <div class="stat-label"><?php esc_html_e('Embedded Forms', 'form-locator-for-gravity-forms'); ?></div>
+                        <div class="stat-change">This Month</div>
                     </div>
                 </div>
                 
                 <!-- Line Chart -->
                 <div class="chart-container">
                     <div class="chart-title"><?php esc_html_e('Form Entries Over Time', 'form-locator-for-gravity-forms'); ?></div>
-                    <canvas id="entriesChart" width="400" height="200"></canvas>
+                    <div style="position: relative; height: 280px; width: 100%;">
+                        <canvas id="entriesChart"></canvas>
+                    </div>
                 </div>
             </div>
             
             <!-- Right Column - Pie Chart -->
             <div class="chart-container">
                 <div class="chart-title"><?php esc_html_e('Entries by Form', 'form-locator-for-gravity-forms'); ?></div>
-                <canvas id="formsChart" width="400" height="300"></canvas>
+                <div style="position: relative; height: 280px; width: 100%;">
+                    <canvas id="formsChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -459,6 +550,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                    },
                     plugins: {
                         legend: {
                             display: false
@@ -486,6 +580,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     elements: {
                         point: {
                             hoverBackgroundColor: '#10b981'
+                        }
+                    },
+                    onResize: function(chart, size) {
+                        // Prevent infinite resizing
+                        if (size.height > 300) {
+                            chart.canvas.style.height = '300px';
                         }
                     }
                 }
@@ -532,13 +632,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     legend: {
                         position: 'bottom',
                         labels: {
-                            padding: 20,
+                            padding: 15,
                             usePointStyle: true,
-                            color: '#646970'
+                            color: '#646970',
+                            font: {
+                                size: 12
+                            }
                         }
                     }
                 },
-                cutout: '60%'
+                cutout: '60%',
+                onResize: function(chart, size) {
+                    // Prevent infinite resizing
+                    if (size.height > 300) {
+                        chart.canvas.style.height = '300px';
+                    }
+                }
             }
         });
     } else if (formsCtx) {
