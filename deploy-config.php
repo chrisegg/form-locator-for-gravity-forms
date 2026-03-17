@@ -23,5 +23,5 @@ return [
 	// Optional. Only deploy when pushes occur to this branch.
 	// Set to null to deploy on any branch push.
 	// Example: 'main' or 'release'
-	'branch_filter' => 'main',
+	'branch_filter' => 'null',
 ];
