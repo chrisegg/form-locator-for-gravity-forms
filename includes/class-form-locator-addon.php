@@ -38,9 +38,9 @@ class Form_Locator_AddOn extends GFAddOn {
     protected $_full_path = __FILE__;
 
     /**
-     * Add-on title
+     * Add-on title (used for page header - keep short to avoid duplicate with our styled title)
      */
-    protected $_title = 'Form Locator for Gravity Forms';
+    protected $_title = 'Form Locator';
 
     /**
      * Add-on short title
@@ -73,7 +73,7 @@ class Form_Locator_AddOn extends GFAddOn {
      * Get singleton instance
      */
     public static function get_instance() {
-        if (self::$_instance == null) {
+        if (self::$_instance === null) {
             self::$_instance = new Form_Locator_AddOn();
         }
         return self::$_instance;
@@ -84,9 +84,53 @@ class Form_Locator_AddOn extends GFAddOn {
      */
     public function init() {
         parent::init();
-        
+
         // Add any additional initialization here
         add_action('admin_init', array($this, 'admin_init'));
+
+        // Move Form Locator to bottom of Forms submenu (run as late as possible)
+        add_action('admin_menu', array($this, 'move_form_locator_menu_to_bottom'), PHP_INT_MAX);
+    }
+
+    /**
+     * Move Form Locator menu item to the bottom of the Forms submenu.
+     * Uses admin_menu at PHP_INT_MAX so we run after Gravity Forms builds its menu.
+     */
+    public function move_form_locator_menu_to_bottom() {
+        global $submenu;
+
+        if (empty($submenu) || !is_array($submenu)) {
+            return;
+        }
+
+        $our_slug = $this->_slug;
+        $our_title = $this->get_short_title();
+
+        foreach ($submenu as $parent => $items) {
+            if (!is_array($items)) {
+                continue;
+            }
+
+            $our_index = null;
+            $our_item = null;
+
+            foreach ($items as $index => $item) {
+                $slug = isset($item[2]) ? $item[2] : '';
+                $title = isset($item[0]) ? wp_strip_all_tags($item[0]) : '';
+                $is_ours = ($slug === $our_slug || $slug === 'gf_form_locator' || $title === $our_title);
+                if ($is_ours) {
+                    $our_index = $index;
+                    $our_item = $item;
+                    break;
+                }
+            }
+
+            if ($our_index !== null && $our_item !== null) {
+                unset($submenu[$parent][$our_index]);
+                $submenu[$parent][] = $our_item;
+                return;
+            }
+        }
     }
 
     /**
@@ -114,13 +158,30 @@ class Form_Locator_AddOn extends GFAddOn {
             $form_pages = [];
             $total_posts_scanned = 0;
 
-            // Retrieve all published posts
-            $results = $wpdb->get_results($wpdb->prepare(
-                "SELECT ID, post_title, post_type, post_content FROM {$wpdb->posts} WHERE post_status = %s", 'publish'
-            ), ARRAY_A);
+            // Get post types and statuses based on settings
+            $scan_config = $this->get_scan_config();
+            $post_types = $scan_config['post_types'];
+            $post_statuses = $scan_config['post_statuses'];
+
+            if (empty($post_types) || empty($post_statuses)) {
+                $results = array();
+            } else {
+                $status_placeholders = implode(',', array_fill(0, count($post_statuses), '%s'));
+                $type_placeholders = implode(',', array_fill(0, count($post_types), '%s'));
+                $params = array_merge($post_statuses, $post_types);
+                $results = $wpdb->get_results($wpdb->prepare(
+                    "SELECT ID, post_title, post_type, post_content 
+                    FROM {$wpdb->posts} 
+                    WHERE post_status IN ($status_placeholders) 
+                    AND post_type IN ($type_placeholders) 
+                    ORDER BY post_type, post_title",
+                    $params
+                ), ARRAY_A);
+            }
 
             if ($wpdb->last_error) {
-                throw new Exception('Database error: ' . $wpdb->last_error);
+                $this->log_error('Database error: ' . $wpdb->last_error);
+                throw new Exception(esc_html__('There was an error processing your request. Please try again later.', 'form-locator-for-gravity-forms'));
             }
 
             $total_posts_scanned = count($results);
@@ -145,6 +206,26 @@ class Form_Locator_AddOn extends GFAddOn {
                 }
             }
 
+            // Get chart data with error handling
+            $embedded_form_ids = $this->get_all_embedded_form_ids($form_pages);
+            $monthly_stats = $this->get_embedded_form_entries_by_month($embedded_form_ids, 12);
+            $form_stats = $this->get_entry_stats_by_form();
+            
+            // Additional stats with fallbacks
+            $total_entries = $this->gf_tables_exist() ? $this->get_total_entries() : 0;
+            $active_forms = $this->gf_tables_exist() ? $this->get_active_forms_count() : 0;
+            $inactive_forms = $this->gf_tables_exist() ? $this->get_inactive_forms_count() : 0;
+            $recent_entries = $this->gf_tables_exist() ? $this->get_recent_entries_count(30) : 0;
+            
+            // Check for chart data errors
+            $chart_errors = array();
+            if (isset($monthly_stats['error'])) {
+                $chart_errors['monthly'] = $monthly_stats['error'];
+            }
+            if (isset($form_stats['error'])) {
+                $chart_errors['forms'] = $form_stats['error'];
+            }
+
             // Pass data to the view file
             $gf_pages = $form_pages; // For backward compatibility with view
             include FORM_LOCATOR_PLUGIN_DIR . 'views/admin-page.php';
@@ -153,6 +234,42 @@ class Form_Locator_AddOn extends GFAddOn {
             $this->log_error($e->getMessage());
             echo '<div class="notice notice-error"><p>' . esc_html__('There was an error processing your request. Please try again later.', 'form-locator-for-gravity-forms') . '</p></div>';
         }
+    }
+
+    /**
+     * Get scan configuration (post types and statuses) based on plugin settings.
+     *
+     * @return array Keys: 'post_types', 'post_statuses'
+     */
+    private function get_scan_config() {
+        return array(
+            'post_types'   => $this->get_scan_post_types(),
+            'post_statuses' => $this->get_scan_post_statuses(),
+        );
+    }
+
+    /**
+     * Get post types to scan: post, page, and all public custom post types.
+     *
+     * @return array List of post type slugs.
+     */
+    private function get_scan_post_types() {
+        $types = get_post_types(array('public' => true), 'names');
+        return array_values(array_diff($types, array('attachment', 'revision')));
+    }
+
+    /**
+     * Get post statuses to scan based on plugin setting.
+     * When "scan_all_post_types" is enabled, includes draft, private, etc.
+     *
+     * @return array List of post status slugs.
+     */
+    private function get_scan_post_statuses() {
+        $include_all = $this->get_plugin_setting('scan_all_post_types');
+        if (!empty($include_all)) {
+            return array('publish', 'draft', 'private', 'pending', 'future', 'trash');
+        }
+        return array('publish');
     }
 
     /**
@@ -257,8 +374,6 @@ class Form_Locator_AddOn extends GFAddOn {
             
             // Check for custom Gravity Forms widgets
             if (isset($element['widgetType']) && strpos($element['widgetType'], 'gravity') !== false) {
-                // Check common form ID field names
-                $possible_fields = ['form_id', 'gravity_form_id', 'gf_form_id', 'form'];
                 if (isset($element['settings']['gravity_form_id'])) {
                     $form_ids[] = intval($element['settings']['gravity_form_id']);
                 }
@@ -480,6 +595,318 @@ class Form_Locator_AddOn extends GFAddOn {
     }
 
     /**
+     * Get all embedded form IDs from scanned pages
+     */
+    private function get_all_embedded_form_ids($form_pages) {
+        $embedded_form_ids = array();
+        
+        foreach ($form_pages as $page) {
+            // Collect all form IDs from shortcodes, blocks, and page builders
+            if (!empty($page['Form IDs'])) {
+                $embedded_form_ids = array_merge($embedded_form_ids, $page['Form IDs']);
+            }
+            if (!empty($page['Block Form IDs'])) {
+                $embedded_form_ids = array_merge($embedded_form_ids, $page['Block Form IDs']);
+            }
+            if (!empty($page['Page Builder Form IDs'])) {
+                $embedded_form_ids = array_merge($embedded_form_ids, $page['Page Builder Form IDs']);
+            }
+        }
+        
+        return array_unique($embedded_form_ids);
+    }
+
+    /**
+     * Get entry statistics by month for embedded forms only
+     */
+    private function get_embedded_form_entries_by_month($embedded_form_ids, $months = 12) {
+        global $wpdb;
+        
+        // Check if Gravity Forms tables exist
+        if (!$this->gf_tables_exist()) {
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'datasets' => array(),
+                'error' => 'Gravity Forms tables not found'
+            );
+        }
+        
+        // If no embedded forms found, return empty data
+        if (empty($embedded_form_ids)) {
+            $labels = array();
+            for ($i = $months - 1; $i >= 0; $i--) {
+                $labels[] = date('M Y', strtotime("-{$i} months"));
+            }
+            
+            return array(
+                'labels' => $labels,
+                'data' => array_fill(0, $months, 0),
+                'datasets' => array()
+            );
+        }
+        
+        try {
+            // Create placeholders for the IN clause
+            $placeholders = implode(',', array_fill(0, count($embedded_form_ids), '%d'));
+            
+            // Prepare parameters: months first, then form IDs
+            $params = array_merge(array($months), $embedded_form_ids);
+            
+            $results = $wpdb->get_results($wpdb->prepare("
+                SELECT 
+                    DATE_FORMAT(e.date_created, '%%Y-%%m') as month,
+                    f.title as form_name,
+                    f.id as form_id,
+                    COUNT(*) as entry_count
+                FROM {$wpdb->prefix}gf_entry e
+                INNER JOIN {$wpdb->prefix}gf_form f ON e.form_id = f.id
+                WHERE e.date_created >= DATE_SUB(NOW(), INTERVAL %d MONTH)
+                AND e.status = 'active'
+                AND e.form_id IN ($placeholders)
+                GROUP BY DATE_FORMAT(e.date_created, '%%Y-%%m'), e.form_id, f.title
+                ORDER BY month ASC, form_name ASC
+            ", $params));
+            
+            if ($wpdb->last_error) {
+                $this->log_error('Database error in get_embedded_form_entries_by_month: ' . $wpdb->last_error);
+                return array(
+                    'labels' => array(),
+                    'data' => array(),
+                    'datasets' => array(),
+                    'error' => 'Database query failed'
+                );
+            }
+            
+            // Initialize month labels and data structure
+            $labels = array();
+            $month_keys = array();
+            for ($i = $months - 1; $i >= 0; $i--) {
+                $month_key = date('Y-m', strtotime("-{$i} months"));
+                $month_keys[] = $month_key;
+                $labels[] = date('M Y', strtotime("-{$i} months"));
+            }
+            
+            // Group data by form and create datasets
+            $form_data = array();
+            $form_colors = array(
+                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
+            );
+            
+            foreach ($results as $row) {
+                $form_id = $row->form_id;
+                $form_name = $row->form_name;
+                
+                if (!isset($form_data[$form_id])) {
+                    $form_data[$form_id] = array(
+                        'name' => $form_name,
+                        'data' => array_fill(0, $months, 0)
+                    );
+                }
+                
+                // Find the month index and set the data
+                $month_index = array_search($row->month, $month_keys);
+                if ($month_index !== false) {
+                    $form_data[$form_id]['data'][$month_index] = intval($row->entry_count);
+                }
+            }
+            
+            // Create datasets for Chart.js
+            $datasets = array();
+            $color_index = 0;
+            
+            foreach ($form_data as $form_id => $data) {
+                $color = $form_colors[$color_index % count($form_colors)];
+                
+                $datasets[] = array(
+                    'label' => $data['name'],
+                    'data' => $data['data'],
+                    'borderColor' => $color,
+                    'backgroundColor' => $color . '20', // Add transparency
+                    'borderWidth' => 2,
+                    'fill' => false,
+                    'tension' => 0.4,
+                    'pointBackgroundColor' => $color,
+                    'pointBorderColor' => '#fff',
+                    'pointBorderWidth' => 2,
+                    'pointRadius' => 4,
+                    'pointHoverRadius' => 6
+                );
+                
+                $color_index++;
+            }
+            
+            // Calculate total entries per month for backward compatibility
+            $total_data = array_fill(0, $months, 0);
+            foreach ($form_data as $data) {
+                for ($i = 0; $i < $months; $i++) {
+                    $total_data[$i] += $data['data'][$i];
+                }
+            }
+            
+            return array(
+                'labels' => $labels,
+                'data' => $total_data, // For backward compatibility
+                'datasets' => $datasets
+            );
+            
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_embedded_form_entries_by_month: ' . $e->getMessage());
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'datasets' => array(),
+                'error' => 'Failed to retrieve embedded form entry statistics'
+            );
+        }
+    }
+
+    /**
+     * Get entry statistics by form for pie chart
+     */
+    private function get_entry_stats_by_form() {
+        global $wpdb;
+        
+        // Check if Gravity Forms tables exist
+        if (!$this->gf_tables_exist()) {
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'error' => 'Gravity Forms tables not found'
+            );
+        }
+        
+        try {
+            $results = $wpdb->get_results("
+                SELECT 
+                    f.title as form_name,
+                    f.id as form_id,
+                    COUNT(e.id) as entry_count
+                FROM {$wpdb->prefix}gf_form f
+                LEFT JOIN {$wpdb->prefix}gf_entry e ON f.id = e.form_id AND e.status = 'active'
+                WHERE f.is_active = 1 AND f.is_trash = 0
+                GROUP BY f.id, f.title
+                HAVING entry_count > 0
+                ORDER BY entry_count DESC
+                LIMIT 10
+            ");
+            
+            if ($wpdb->last_error) {
+                $this->log_error('Database error in get_entry_stats_by_form: ' . $wpdb->last_error);
+                return array(
+                    'labels' => array(),
+                    'data' => array(),
+                    'error' => 'Database query failed'
+                );
+            }
+            
+            $form_names = array();
+            $entry_counts = array();
+            
+            foreach ($results as $row) {
+                $form_names[] = $row->form_name;
+                $entry_counts[] = intval($row->entry_count);
+            }
+            
+            return array(
+                'labels' => $form_names,
+                'data' => $entry_counts
+            );
+            
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_entry_stats_by_form: ' . $e->getMessage());
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'error' => 'Failed to retrieve form statistics'
+            );
+        }
+    }
+
+    /**
+     * Get total entries count
+     */
+    private function get_total_entries() {
+        global $wpdb;
+        
+        $count = $wpdb->get_var("
+            SELECT COUNT(*) 
+            FROM {$wpdb->prefix}gf_entry 
+            WHERE status = 'active'
+        ");
+        
+        return intval($count);
+    }
+
+    /**
+     * Get active forms count
+     */
+    private function get_active_forms_count() {
+        global $wpdb;
+        
+        $count = $wpdb->get_var("
+            SELECT COUNT(*) 
+            FROM {$wpdb->prefix}gf_form 
+            WHERE is_active = 1 AND is_trash = 0
+        ");
+        
+        return intval($count);
+    }
+
+    /**
+     * Get inactive forms count (forms that exist but are deactivated, not trashed)
+     */
+    private function get_inactive_forms_count() {
+        global $wpdb;
+        
+        $count = $wpdb->get_var("
+            SELECT COUNT(*) 
+            FROM {$wpdb->prefix}gf_form 
+            WHERE is_active = 0 AND is_trash = 0
+        ");
+        
+        return intval($count);
+    }
+
+    /**
+     * Get recent entries count
+     */
+    private function get_recent_entries_count($days = 30) {
+        global $wpdb;
+        
+        $count = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(*) 
+            FROM {$wpdb->prefix}gf_entry 
+            WHERE status = 'active'
+            AND date_created >= DATE_SUB(NOW(), INTERVAL %d DAY)
+        ", $days));
+        
+        return intval($count);
+    }
+
+    /**
+     * Check if Gravity Forms tables exist
+     */
+    private function gf_tables_exist() {
+        global $wpdb;
+        
+        $tables = array(
+            $wpdb->prefix . 'gf_form',
+            $wpdb->prefix . 'gf_entry'
+        );
+        
+        foreach ($tables as $table) {
+            $result = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+            if ($result !== $table) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    /**
      * Log error messages
      */
     public function log_error($message) {
@@ -498,8 +925,8 @@ class Form_Locator_AddOn extends GFAddOn {
                 'fields' => array(
                     array(
                         'name'    => 'scan_all_post_types',
-                        'tooltip' => esc_html__('Enable this to scan all post types, not just published posts.', 'form-locator-for-gravity-forms'),
-                        'label'   => esc_html__('Scan All Post Types', 'form-locator-for-gravity-forms'),
+                        'tooltip' => esc_html__('When enabled, the scan includes draft, private, pending, future, and trashed content in addition to published posts. By default, only published content is scanned.', 'form-locator-for-gravity-forms'),
+                        'label'   => esc_html__('Include Draft and Private Content', 'form-locator-for-gravity-forms'),
                         'type'    => 'checkbox',
                         'choices' => array(
                             array(

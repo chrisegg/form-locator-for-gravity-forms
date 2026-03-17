@@ -1,0 +1,20 @@
+# Deploy configuration (contains secrets — never commit)
+deploy-config.php
+
+# Deploy logs
+deploy.log
+
+# Composer
+vendor/
+composer.lock
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
