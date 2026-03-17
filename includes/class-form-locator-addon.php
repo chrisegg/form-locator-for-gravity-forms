@@ -145,6 +145,24 @@ class Form_Locator_AddOn extends GFAddOn {
                 }
             }
 
+            // Get chart data with error handling
+            $monthly_stats = $this->get_entry_stats_by_month(12);
+            $form_stats = $this->get_entry_stats_by_form();
+            
+            // Additional stats with fallbacks
+            $total_entries = $this->gf_tables_exist() ? $this->get_total_entries() : 0;
+            $active_forms = $this->gf_tables_exist() ? $this->get_active_forms_count() : 0;
+            $recent_entries = $this->gf_tables_exist() ? $this->get_recent_entries_count(30) : 0;
+            
+            // Check for chart data errors
+            $chart_errors = array();
+            if (isset($monthly_stats['error'])) {
+                $chart_errors['monthly'] = $monthly_stats['error'];
+            }
+            if (isset($form_stats['error'])) {
+                $chart_errors['forms'] = $form_stats['error'];
+            }
+
             // Pass data to the view file
             $gf_pages = $form_pages; // For backward compatibility with view
             include FORM_LOCATOR_PLUGIN_DIR . 'views/admin-page.php';
@@ -477,6 +495,203 @@ class Form_Locator_AddOn extends GFAddOn {
         }
         
         return '<span class="form-status ' . esc_attr($class) . '">' . esc_html($status) . '</span>';
+    }
+
+    /**
+     * Get entry statistics by month for line chart
+     */
+    private function get_entry_stats_by_month($months = 12) {
+        global $wpdb;
+        
+        // Check if Gravity Forms tables exist
+        if (!$this->gf_tables_exist()) {
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'error' => 'Gravity Forms tables not found'
+            );
+        }
+        
+        try {
+            $results = $wpdb->get_results($wpdb->prepare("
+                SELECT 
+                    DATE_FORMAT(date_created, '%%Y-%%m') as month,
+                    COUNT(*) as entry_count
+                FROM {$wpdb->prefix}gf_entry 
+                WHERE date_created >= DATE_SUB(NOW(), INTERVAL %d MONTH)
+                AND status = 'active'
+                GROUP BY DATE_FORMAT(date_created, '%%Y-%%m')
+                ORDER BY month ASC
+            ", $months));
+            
+            if ($wpdb->last_error) {
+                $this->log_error('Database error in get_entry_stats_by_month: ' . $wpdb->last_error);
+                return array(
+                    'labels' => array(),
+                    'data' => array(),
+                    'error' => 'Database query failed'
+                );
+            }
+            
+            // Fill in missing months with 0 entries
+            $month_data = array();
+            $labels = array();
+            
+            for ($i = $months - 1; $i >= 0; $i--) {
+                $month = date('Y-m', strtotime("-{$i} months"));
+                $month_data[$month] = 0;
+                $labels[] = date('M Y', strtotime("-{$i} months"));
+            }
+            
+            // Fill in actual data
+            foreach ($results as $row) {
+                if (isset($month_data[$row->month])) {
+                    $month_data[$row->month] = intval($row->entry_count);
+                }
+            }
+            
+            return array(
+                'labels' => $labels,
+                'data' => array_values($month_data)
+            );
+            
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_entry_stats_by_month: ' . $e->getMessage());
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'error' => 'Failed to retrieve entry statistics'
+            );
+        }
+    }
+
+    /**
+     * Get entry statistics by form for pie chart
+     */
+    private function get_entry_stats_by_form() {
+        global $wpdb;
+        
+        // Check if Gravity Forms tables exist
+        if (!$this->gf_tables_exist()) {
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'error' => 'Gravity Forms tables not found'
+            );
+        }
+        
+        try {
+            $results = $wpdb->get_results("
+                SELECT 
+                    f.title as form_name,
+                    f.id as form_id,
+                    COUNT(e.id) as entry_count
+                FROM {$wpdb->prefix}gf_form f
+                LEFT JOIN {$wpdb->prefix}gf_entry e ON f.id = e.form_id AND e.status = 'active'
+                WHERE f.is_active = 1 AND f.is_trash = 0
+                GROUP BY f.id, f.title
+                HAVING entry_count > 0
+                ORDER BY entry_count DESC
+                LIMIT 10
+            ");
+            
+            if ($wpdb->last_error) {
+                $this->log_error('Database error in get_entry_stats_by_form: ' . $wpdb->last_error);
+                return array(
+                    'labels' => array(),
+                    'data' => array(),
+                    'error' => 'Database query failed'
+                );
+            }
+            
+            $form_names = array();
+            $entry_counts = array();
+            
+            foreach ($results as $row) {
+                $form_names[] = $row->form_name;
+                $entry_counts[] = intval($row->entry_count);
+            }
+            
+            return array(
+                'labels' => $form_names,
+                'data' => $entry_counts
+            );
+            
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_entry_stats_by_form: ' . $e->getMessage());
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'error' => 'Failed to retrieve form statistics'
+            );
+        }
+    }
+
+    /**
+     * Get total entries count
+     */
+    private function get_total_entries() {
+        global $wpdb;
+        
+        $count = $wpdb->get_var("
+            SELECT COUNT(*) 
+            FROM {$wpdb->prefix}gf_entry 
+            WHERE status = 'active'
+        ");
+        
+        return intval($count);
+    }
+
+    /**
+     * Get active forms count
+     */
+    private function get_active_forms_count() {
+        global $wpdb;
+        
+        $count = $wpdb->get_var("
+            SELECT COUNT(*) 
+            FROM {$wpdb->prefix}gf_form 
+            WHERE is_active = 1 AND is_trash = 0
+        ");
+        
+        return intval($count);
+    }
+
+    /**
+     * Get recent entries count
+     */
+    private function get_recent_entries_count($days = 30) {
+        global $wpdb;
+        
+        $count = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(*) 
+            FROM {$wpdb->prefix}gf_entry 
+            WHERE status = 'active'
+            AND date_created >= DATE_SUB(NOW(), INTERVAL %d DAY)
+        ", $days));
+        
+        return intval($count);
+    }
+
+    /**
+     * Check if Gravity Forms tables exist
+     */
+    private function gf_tables_exist() {
+        global $wpdb;
+        
+        $tables = array(
+            $wpdb->prefix . 'gf_form',
+            $wpdb->prefix . 'gf_entry'
+        );
+        
+        foreach ($tables as $table) {
+            $result = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+            if ($result !== $table) {
+                return false;
+            }
+        }
+        
+        return true;
     }
 
     /**
