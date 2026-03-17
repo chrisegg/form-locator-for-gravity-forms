@@ -5,21 +5,21 @@ Donate link: https://gravityranger.com/donate
 Contributors: chrisegg
 Tags: Gravity Forms, Add-on, Utility, Page Builder, Elementor, Beaver Builder, Avada, Divi, WPBakery
 Requires at least: 6.7
-Tested up to: 6.7.2
+Tested up to: 7.0.0
 Requires PHP: 8.0.0
 Stable tag: 2.0.0
 License: GPLv2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Official Gravity Forms add-on for comprehensive form detection across WordPress pages, posts, and page builders. Find forms embedded via shortcodes, blocks, widgets, and page builder modules.
+Gravity Forms add-on for comprehensive form detection across WordPress pages, posts, and page builders. Find forms embedded via shortcodes, blocks, widgets, and page builder modules.
 
 == Description ==
 
-Form Locator for Gravity Forms is an official Gravity Forms add-on that scans your entire WordPress site to find where Gravity Forms are embedded. Built using the official Gravity Forms Add-On Framework, it provides seamless integration with your Gravity Forms installation and detects forms across multiple embedding methods and page builders.
+Form Locator for Gravity Forms is a Gravity Forms add-on that scans your entire WordPress site to find where Gravity Forms are embedded. Built using the official Gravity Forms Add-On Framework, it provides seamless integration with your Gravity Forms installation and detects forms across multiple embedding methods and page builders.
 
 **Key Features:**
 
-* **Official Add-On**: Built using the official Gravity Forms Add-On Framework for seamless integration
+* **Add-On Framework**: Built using the Gravity Forms Add-On Framework for seamless integration
 * **Multi-Method Detection**: Finds forms embedded via shortcodes, Gutenberg blocks, and page builder widgets
 * **Page Builder Support**: Comprehensive support for Elementor, Beaver Builder, Avada Fusion Builder, Divi, and WPBakery
 * **Form Status Tracking**: Shows active, inactive, trashed, and deleted form status
@@ -52,18 +52,18 @@ Form Locator for Gravity Forms is an official Gravity Forms add-on that scans yo
 
 **Security Features:**
 
-* Proper WordPress nonce verification
-* Input sanitization and validation
-* Output escaping for XSS protection
-* Capability checks for admin access
+* Output escaping for XSS protection (esc_html, esc_attr, esc_url)
+* Capability checks for admin access (manage_options)
 * Secure database queries with prepared statements
+* Input sanitization and validation
+* The Form Locator page is read-only; no form submissions require nonce verification
 
 == Installation ==
 
 **Prerequisites:**
 - WordPress 6.7 or higher
 - PHP 8.0 or higher  
-- Gravity Forms 2.4 or higher (required)
+- Gravity Forms 2.7 or higher (required)
 
 **Method 1: Traditional Installation**
 1. Upload the plugin files to the `/wp-content/plugins/form-locator-for-gravity-forms` directory, or install the plugin through the WordPress admin screen directly.
@@ -83,7 +83,7 @@ Form Locator for Gravity Forms is an official Gravity Forms add-on that scans yo
 
 = Does it only work with Gravity Forms? =
 
-Yes, this is an official Gravity Forms add-on that requires Gravity Forms 2.4 or higher to be installed and activated. It will not function without Gravity Forms.
+Yes, this is a Gravity Forms add-on that requires Gravity Forms 2.4 or higher to be installed and activated. It will not function without Gravity Forms.
 
 = What page builders are supported? =
 

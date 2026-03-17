@@ -1,30 +1,50 @@
 <?php
 /**
- * Form Locator for Gravity Forms
+ * Form Locator for Gravity Forms - Bootstrap
  *
- * @package       FormLocator
- * @author        Chris Eggleston
- * @license       gplv2
- * @version       2.0.0
+ * Bootstrap file for the Form Locator Gravity Forms add-on. Handles plugin
+ * initialization, constant definitions, and Gravity Forms dependency checking.
  *
  * @wordpress-plugin
- * Plugin Name:   Form Locator for Gravity Forms
- * Plugin URI:    https://github.com/chrisegg/form-locator-for-gravity-forms
- * Description:   Lists WordPress pages and posts that contain Gravity Forms block or shortcode, including those deleted, trashed, and inactive.
- * Version:       2.0.0
- * Author:        Chris Eggleston
- * Author URI:    https://gravityranger.com
- * Text Domain:   form-locator-for-gravity-forms
- * Domain Path:   /languages
- * License:       GPLv2
- * License URI:   https://www.gnu.org/licenses/gpl-2.0.html
- * Update URI:    https://github.com/chrisegg/form-locator-for-gravity-forms
+ * Plugin Name:       Form Locator for Gravity Forms
+ * Plugin URI:        https://github.com/chrisegg/form-locator-for-gravity-forms
+ * Description:       Lists WordPress pages and posts that contain Gravity Forms block or shortcode, including those deleted, trashed, and inactive.
+ * Version:           2.0.0
+ * Author:            Chris Eggleston
+ * Author URI:        https://gravityranger.com
+ * License:           GPLv2 or later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       form-locator-for-gravity-forms
+ * Domain Path:       /languages
+ * Update URI:        https://github.com/chrisegg/form-locator-for-gravity-forms
  * Requires at least: 6.7
- * Tested up to: 6.7.2
- * Requires PHP: 8.0
+ * Tested up to:      7.0.0
+ * Requires PHP:      8.0
  *
- * You should have received a copy of the GNU General Public License
- * along with Form Locator for Gravity Forms. If not, see <https://www.gnu.org/licenses/gpl-2.0.html/>.
+ * @package   Form_Locator_For_Gravity_Forms
+ * @since     2.0.0
+ * @version   2.0.0
+ * @author    Chris Eggleston <https://gravityranger.com>
+ * @link      https://github.com/chrisegg/form-locator-for-gravity-forms
+ * @license   GPL-2.0-or-later
+ *
+ * -----------------------------------------------------------------------------
+ * LICENSE
+ * -----------------------------------------------------------------------------
+ *
+ * Form Locator for Gravity Forms is free software: you can redistribute it
+ * and/or modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation, either version 2 of the License,
+ * or any later version.
+ *
+ * Form Locator for Gravity Forms is distributed in the hope that it will be
+ * useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * Form Locator for Gravity Forms. If not, see
+ * <https://www.gnu.org/licenses/gpl-2.0.html/>.
  */
 
 // Exit if accessed directly

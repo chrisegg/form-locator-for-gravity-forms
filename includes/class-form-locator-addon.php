@@ -116,7 +116,7 @@ class Form_Locator_AddOn extends GFAddOn {
 
             foreach ($items as $index => $item) {
                 $slug = isset($item[2]) ? $item[2] : '';
-                $title = isset($item[0]) ? strip_tags($item[0]) : '';
+                $title = isset($item[0]) ? wp_strip_all_tags($item[0]) : '';
                 $is_ours = ($slug === $our_slug || $slug === 'gf_form_locator' || $title === $our_title);
                 if ($is_ours) {
                     $our_index = $index;
@@ -148,6 +148,51 @@ class Form_Locator_AddOn extends GFAddOn {
     }
 
     /**
+     * Check if current admin page is the Form Locator plugin page
+     *
+     * @return bool
+     */
+    public function is_form_locator_plugin_page() {
+        $page = function_exists('rgget') ? rgget('page') : (isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '');
+        return in_array($page, array($this->_slug, 'gf_form_locator'), true);
+    }
+
+    /**
+     * Enqueue scripts for the Form Locator plugin page
+     */
+    public function scripts() {
+        $base_url = $this->get_base_url();
+        $scripts = parent::scripts();
+        $scripts[] = array(
+            'handle'  => 'form-locator-chartjs',
+            'src'     => $base_url . '/assets/js/chart.min.js',
+            'version' => $this->_version,
+            'deps'    => array(),
+            'in_footer' => false,
+            'enqueue' => array(
+                array(
+                    'admin_page' => array( 'plugin_page' ),
+                    'callback'   => array( $this, 'is_form_locator_plugin_page' ),
+                ),
+            ),
+        );
+        $scripts[] = array(
+            'handle'  => 'form-locator-chartjs-datalabels',
+            'src'     => $base_url . '/assets/js/chartjs-plugin-datalabels.min.js',
+            'version' => $this->_version,
+            'deps'    => array( 'form-locator-chartjs' ),
+            'in_footer' => false,
+            'enqueue' => array(
+                array(
+                    'admin_page' => array( 'plugin_page' ),
+                    'callback'   => array( $this, 'is_form_locator_plugin_page' ),
+                ),
+            ),
+        );
+        return $scripts;
+    }
+
+    /**
      * Main plugin page content
      */
     public function plugin_page() {
@@ -158,18 +203,30 @@ class Form_Locator_AddOn extends GFAddOn {
             $form_pages = [];
             $total_posts_scanned = 0;
 
-            // Retrieve all published posts and pages (excluding attachments, nav items, etc.)
-            $results = $wpdb->get_results($wpdb->prepare(
-                "SELECT ID, post_title, post_type, post_content 
-                FROM {$wpdb->posts} 
-                WHERE post_status = %s 
-                AND post_type IN ('post', 'page') 
-                ORDER BY post_type, post_title", 
-                'publish'
-            ), ARRAY_A);
+            // Get post types and statuses based on settings
+            $scan_config = $this->get_scan_config();
+            $post_types = $scan_config['post_types'];
+            $post_statuses = $scan_config['post_statuses'];
+
+            if (empty($post_types) || empty($post_statuses)) {
+                $results = array();
+            } else {
+                $status_placeholders = implode(',', array_fill(0, count($post_statuses), '%s'));
+                $type_placeholders = implode(',', array_fill(0, count($post_types), '%s'));
+                $params = array_merge($post_statuses, $post_types);
+                $results = $wpdb->get_results($wpdb->prepare(
+                    "SELECT ID, post_title, post_type, post_content 
+                    FROM {$wpdb->posts} 
+                    WHERE post_status IN ($status_placeholders) 
+                    AND post_type IN ($type_placeholders) 
+                    ORDER BY post_type, post_title",
+                    $params
+                ), ARRAY_A);
+            }
 
             if ($wpdb->last_error) {
-                throw new Exception('Database error: ' . $wpdb->last_error);
+                $this->log_error('Database error: ' . $wpdb->last_error);
+                throw new Exception(esc_html__('There was an error processing your request. Please try again later.', 'form-locator-for-gravity-forms'));
             }
 
             $total_posts_scanned = count($results);
@@ -222,6 +279,42 @@ class Form_Locator_AddOn extends GFAddOn {
             $this->log_error($e->getMessage());
             echo '<div class="notice notice-error"><p>' . esc_html__('There was an error processing your request. Please try again later.', 'form-locator-for-gravity-forms') . '</p></div>';
         }
+    }
+
+    /**
+     * Get scan configuration (post types and statuses) based on plugin settings.
+     *
+     * @return array Keys: 'post_types', 'post_statuses'
+     */
+    private function get_scan_config() {
+        return array(
+            'post_types'   => $this->get_scan_post_types(),
+            'post_statuses' => $this->get_scan_post_statuses(),
+        );
+    }
+
+    /**
+     * Get post types to scan: post, page, and all public custom post types.
+     *
+     * @return array List of post type slugs.
+     */
+    private function get_scan_post_types() {
+        $types = get_post_types(array('public' => true), 'names');
+        return array_values(array_diff($types, array('attachment', 'revision')));
+    }
+
+    /**
+     * Get post statuses to scan based on plugin setting.
+     * When "scan_all_post_types" is enabled, includes draft, private, etc.
+     *
+     * @return array List of post status slugs.
+     */
+    private function get_scan_post_statuses() {
+        $include_all = $this->get_plugin_setting('scan_all_post_types');
+        if (!empty($include_all)) {
+            return array('publish', 'draft', 'private', 'pending', 'future', 'trash');
+        }
+        return array('publish');
     }
 
     /**
@@ -326,8 +419,6 @@ class Form_Locator_AddOn extends GFAddOn {
             
             // Check for custom Gravity Forms widgets
             if (isset($element['widgetType']) && strpos($element['widgetType'], 'gravity') !== false) {
-                // Check common form ID field names
-                $possible_fields = ['form_id', 'gravity_form_id', 'gf_form_id', 'form'];
                 if (isset($element['settings']['gravity_form_id'])) {
                     $form_ids[] = intval($element['settings']['gravity_form_id']);
                 }
@@ -947,8 +1038,8 @@ class Form_Locator_AddOn extends GFAddOn {
                 'fields' => array(
                     array(
                         'name'    => 'scan_all_post_types',
-                        'tooltip' => esc_html__('Enable this to scan all post types, not just published posts.', 'form-locator-for-gravity-forms'),
-                        'label'   => esc_html__('Scan All Post Types', 'form-locator-for-gravity-forms'),
+                        'tooltip' => esc_html__('When enabled, the scan includes draft, private, pending, future, and trashed content in addition to published posts. By default, only published content is scanned.', 'form-locator-for-gravity-forms'),
+                        'label'   => esc_html__('Include Draft and Private Content', 'form-locator-for-gravity-forms'),
                         'type'    => 'checkbox',
                         'choices' => array(
                             array(
