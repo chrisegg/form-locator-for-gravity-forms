@@ -1,8 +1,24 @@
 {
     "name": "chrisegg/form-locator-for-gravity-forms",
-    "description": "Lists WordPress pages and posts that contain Gravity Forms block or shortcode, including those deleted, trashed, and inactive.",
+    "description": "Official Gravity Forms add-on for comprehensive form detection across WordPress pages, posts, and page builders.",
     "type": "plugin",
-    "license": "GPL2",
-    "keywords": ["wordpress", "plugin"],
-    "prefer-stable" : true
+    "version": "2.0.0",
+    "license": "GPL-2.0-or-later",
+    "keywords": ["wordpress", "plugin", "gravity-forms", "add-on", "forms"],
+    "prefer-stable": true,
+    "require": {
+        "php": ">=8.0"
+    },
+    "authors": [
+        {
+            "name": "Chris Eggleston",
+            "email": "chris@gravityranger.com",
+            "homepage": "https://gravityranger.com"
+        }
+    ],
+    "homepage": "https://github.com/chrisegg/form-locator-for-gravity-forms",
+    "support": {
+        "issues": "https://github.com/chrisegg/form-locator-for-gravity-forms/issues",
+        "source": "https://github.com/chrisegg/form-locator-for-gravity-forms"
+    }
 }

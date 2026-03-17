@@ -3,27 +3,28 @@ Author URI: https://gravityranger.com
 Plugin URI: https://github.com/chrisegg/form-locator-for-gravity-forms
 Donate link: https://gravityranger.com/donate
 Contributors: chrisegg
-Tags: Gravity Forms, Utility, Page Builder, Elementor, Beaver Builder, Avada, Divi, WPBakery
+Tags: Gravity Forms, Add-on, Utility, Page Builder, Elementor, Beaver Builder, Avada, Divi, WPBakery
 Requires at least: 6.7
 Tested up to: 6.7.2
 Requires PHP: 8.0.0
-Stable tag: 1.1.0
+Stable tag: 2.0.0
 License: GPLv2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Comprehensive Gravity Forms detection across WordPress pages, posts, and page builders. Find forms embedded via shortcodes, blocks, widgets, and page builder modules.
+Official Gravity Forms add-on for comprehensive form detection across WordPress pages, posts, and page builders. Find forms embedded via shortcodes, blocks, widgets, and page builder modules.
 
 == Description ==
 
-Form Locator for Gravity Forms is a powerful utility that scans your entire WordPress site to find where Gravity Forms are embedded. It detects forms across multiple embedding methods and page builders, providing a complete overview of your form usage.
+Form Locator for Gravity Forms is an official Gravity Forms add-on that scans your entire WordPress site to find where Gravity Forms are embedded. Built using the official Gravity Forms Add-On Framework, it provides seamless integration with your Gravity Forms installation and detects forms across multiple embedding methods and page builders.
 
 **Key Features:**
 
+* **Official Add-On**: Built using the official Gravity Forms Add-On Framework for seamless integration
 * **Multi-Method Detection**: Finds forms embedded via shortcodes, Gutenberg blocks, and page builder widgets
 * **Page Builder Support**: Comprehensive support for Elementor, Beaver Builder, Avada Fusion Builder, Divi, and WPBakery
 * **Form Status Tracking**: Shows active, inactive, trashed, and deleted form status
-* **Security Focused**: Built with WordPress security best practices and proper data sanitization
-* **Modern Interface**: Clean, professional admin interface with detailed statistics
+* **Native GF Interface**: Uses Gravity Forms native styling and admin interface patterns
+* **Enhanced Security**: Built with Gravity Forms security patterns and capability management
 * **Comprehensive Scanning**: Searches all published posts, pages, and custom post types
 
 **Supported Embedding Methods:**
@@ -59,6 +60,11 @@ Form Locator for Gravity Forms is a powerful utility that scans your entire Word
 
 == Installation ==
 
+**Prerequisites:**
+- WordPress 6.7 or higher
+- PHP 8.0 or higher  
+- Gravity Forms 2.4 or higher (required)
+
 **Method 1: Traditional Installation**
 1. Upload the plugin files to the `/wp-content/plugins/form-locator-for-gravity-forms` directory, or install the plugin through the WordPress admin screen directly.
 2. Activate the plugin through the 'Plugins' screen in WordPress
@@ -71,11 +77,13 @@ Form Locator for Gravity Forms is a powerful utility that scans your entire Word
 3. Navigate to **Forms → Form Locator** in the admin menu
 4. View your comprehensive form usage report
 
+**Note:** This add-on integrates seamlessly with your existing Gravity Forms installation and appears as a native menu item under the Forms menu.
+
 == Frequently Asked Questions ==
 
 = Does it only work with Gravity Forms? =
 
-Yes, this plugin is specifically designed for Gravity Forms and requires Gravity Forms to be installed and activated.
+Yes, this is an official Gravity Forms add-on that requires Gravity Forms 2.4 or higher to be installed and activated. It will not function without Gravity Forms.
 
 = What page builders are supported? =
 
@@ -87,7 +95,7 @@ Yes, the plugin scans all published posts regardless of post type, including cus
 
 = Is it secure? =
 
-Yes, the plugin follows WordPress security best practices including proper data sanitization, output escaping, capability checks, and secure database queries.
+Yes, this add-on is built using the official Gravity Forms Add-On Framework which includes built-in security features. It also follows WordPress security best practices including proper data sanitization, output escaping, capability checks, and secure database queries.
 
 = Does it work with Gravity Forms add-ons? =
 
@@ -108,6 +116,33 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
 3. Page builder detection results
 
 == Changelog ==
+
+= 2.0.0: March 16, 2026 =
+* **MAJOR**: Complete refactor to official Gravity Forms Add-On Framework
+  * Now extends GFAddOn class for seamless integration
+  * Native Gravity Forms admin interface styling
+  * Built-in security and capability management
+  * Proper add-on initialization and dependency checking
+* **NEW**: Enhanced admin interface
+  * Native Gravity Forms styling and components
+  * Improved form status indicators with color coding
+  * Professional statistics cards
+  * Responsive grid layout
+* **NEW**: Framework benefits
+  * Automatic minimum requirements checking
+  * Built-in settings framework integration
+  * Enhanced security patterns
+  * Better internationalization support
+* **REMOVED**: Custom GitHub update system
+  * Simplified codebase by removing custom update checker
+  * Focus on core functionality and framework integration
+* **IMPROVED**: Code organization
+  * Eliminated unnecessary GF prefixes
+  * Cleaner class structure and naming
+  * Better separation of concerns
+* **BREAKING**: Requires Gravity Forms 2.4+
+  * This version requires a minimum of Gravity Forms 2.4
+  * Older versions of Gravity Forms are no longer supported
 
 = 1.1.0: June 20, 2025 =
 * **NEW**: Added comprehensive page builder support
@@ -150,6 +185,9 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
 * Form status checking
 
 == Upgrade Notice ==
+
+= 2.0.0 =
+MAJOR UPDATE: Complete refactor to official Gravity Forms Add-On Framework. This version requires Gravity Forms 2.4+ and provides native GF integration, enhanced security, and improved admin interface. The custom update system has been removed for a cleaner, more focused codebase.
 
 = 1.1.0 =
 This major update adds comprehensive page builder support, enhanced security, and a modern interface. The plugin now detects forms across all major page builders and provides a much more detailed analysis of your Gravity Forms usage.
