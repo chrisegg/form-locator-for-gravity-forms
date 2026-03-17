@@ -399,38 +399,28 @@ class Form_Locator_AddOn extends GFAddOn {
             return $form_ids;
         }
         
-        // Handle both object and array formats
+        // Normalize: Beaver Builder data can be object or array; ensure array for consistent access
         if (is_object($bb_data)) {
-            foreach ($bb_data as $node) {
-                if (isset($node->type) && $node->type === 'module') {
-                    if (isset($node->settings) && is_object($node->settings)) {
-                        // Check for direct form ID
-                        if (isset($node->settings->gravity_form_id)) {
-                            $form_ids[] = intval($node->settings->gravity_form_id);
-                        }
-                        
-                        // Check for widget-based form ID
-                        if (isset($node->settings->{'widget-gform_widget'}->form_id)) {
-                            $form_ids[] = intval($node->settings->{'widget-gform_widget'}->form_id);
-                        }
-                    }
-                }
+            $bb_data = json_decode(json_encode($bb_data), true);
+        }
+        if (!is_array($bb_data)) {
+            return $form_ids;
+        }
+        
+        foreach ($bb_data as $node) {
+            if (!is_array($node) || ($node['type'] ?? null) !== 'module') {
+                continue;
             }
-        } elseif (is_array($bb_data)) {
-            foreach ($bb_data as $node) {
-                if (isset($node['type']) && $node['type'] === 'module') {
-                    if (isset($node['settings']) && is_array($node['settings'])) {
-                        // Check for direct form ID
-                        if (isset($node['settings']['gravity_form_id'])) {
-                            $form_ids[] = intval($node['settings']['gravity_form_id']);
-                        }
-                        
-                        // Check for widget-based form ID
-                        if (isset($node['settings']['widget-gform_widget']['form_id'])) {
-                            $form_ids[] = intval($node['settings']['widget-gform_widget']['form_id']);
-                        }
-                    }
-                }
+            $settings = $node['settings'] ?? null;
+            if (!is_array($settings)) {
+                continue;
+            }
+            if (isset($settings['gravity_form_id'])) {
+                $form_ids[] = intval($settings['gravity_form_id']);
+            }
+            $widget = $settings['widget-gform_widget'] ?? null;
+            if (is_array($widget) && isset($widget['form_id'])) {
+                $form_ids[] = intval($widget['form_id']);
             }
         }
         

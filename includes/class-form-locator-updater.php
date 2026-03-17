@@ -14,8 +14,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-require_once FORM_LOCATOR_PLUGIN_DIR . 'includes/parsedown/Parsedown.php';
-
 /**
  * Class Form_Locator_Updater
  */
@@ -46,6 +44,7 @@ class Form_Locator_Updater {
             array(__CLASS__, 'update_message')
         );
         add_action('load-update-core.php', array(__CLASS__, 'clear_release_cache'));
+        add_action('upgrader_process_complete', array(__CLASS__, 'reactivate_after_update'), 10, 2);
     }
 
     /**
@@ -54,6 +53,35 @@ class Form_Locator_Updater {
      */
     public static function clear_release_cache() {
         delete_transient(self::CACHE_KEY);
+    }
+
+    /**
+     * Reactivate the plugin after it has been updated.
+     * WordPress deactivates plugins during updates but does not automatically reactivate them.
+     *
+     * @param \WP_Upgrader $upgrader   The upgrader instance
+     * @param array        $options    Array of update data
+     */
+    public static function reactivate_after_update($upgrader, $options) {
+        if ($options['action'] !== 'update' || $options['type'] !== 'plugin') {
+            return;
+        }
+
+        $plugin_slug = plugin_basename(FORM_LOCATOR_PLUGIN_FILE);
+        $plugins     = isset($options['plugins']) ? $options['plugins'] : array();
+        if (isset($options['plugin']) && !isset($options['plugins'])) {
+            $plugins = array($options['plugin']);
+        }
+
+        if (!in_array($plugin_slug, $plugins, true)) {
+            return;
+        }
+
+        if (!function_exists('activate_plugin')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        activate_plugin($plugin_slug);
     }
 
     /**
@@ -83,6 +111,9 @@ class Form_Locator_Updater {
             $readme         = self::get_readme_sections();
             $desc_content   = !empty($readme['description']) ? $readme['description'] : esc_html__('Comprehensive Gravity Forms detection across WordPress pages, posts, and page builders.', 'form-locator-for-gravity-forms');
             $changelog_raw  = $release_data['changelog'] ?? '';
+            if (empty(trim($changelog_raw))) {
+                $changelog_raw = self::get_changelog_from_readme();
+            }
 
             $transient->response[$plugin_slug] = (object) array(
                 'slug'          => 'form-locator-for-gravity-forms',
@@ -95,8 +126,8 @@ class Form_Locator_Updater {
                 'tested'        => '7.0.0',
                 'last_updated'  => $release_data['date'] ?? '',
                 'sections'     => array(
-                    'description' => self::format_plugin_section($desc_content),
-                    'changelog'   => $changelog_raw ? self::format_plugin_section($changelog_raw) : '',
+                    'description' => self::simple_markdown_to_html($desc_content),
+                    'changelog'   => $changelog_raw ? self::simple_markdown_to_html($changelog_raw) : '',
                 ),
             );
         }
@@ -117,19 +148,43 @@ class Form_Locator_Updater {
             return $result;
         }
 
-        if (!isset($args->slug) || $args->slug !== 'form-locator-for-gravity-forms') {
+        $slug = is_object($args) ? ($args->slug ?? '') : ($args['slug'] ?? '');
+        if ($slug !== 'form-locator-for-gravity-forms') {
             return $result;
         }
 
-        $release_data   = self::get_release_data();
-        $version        = $release_data['version'] ?? FORM_LOCATOR_VERSION;
-        $date           = $release_data['date'] ?? '';
-        $changelog_raw  = $release_data['changelog'] ?? '';
-        $changelog      = $changelog_raw ? self::format_plugin_section($changelog_raw) : esc_html__('Changelog not available.', 'form-locator-for-gravity-forms');
+        $release_data = self::get_release_data();
+        if (!is_array($release_data)) {
+            $release_data = array();
+        }
 
-        $readme         = self::get_readme_sections();
-        $description    = !empty($readme['description']) ? self::format_plugin_section($readme['description']) : self::format_plugin_section(esc_html__('Comprehensive Gravity Forms detection across WordPress pages, posts, and page builders. Find forms embedded via shortcodes, blocks, widgets, and page builder modules.', 'form-locator-for-gravity-forms'));
-        $installation   = !empty($readme['installation']) ? self::format_plugin_section($readme['installation']) : self::format_plugin_section(esc_html__('Upload the plugin files to the /wp-content/plugins/form-locator-for-gravity-forms directory, or install the plugin through the WordPress admin screen directly. Activate the plugin through the Plugins screen in WordPress.', 'form-locator-for-gravity-forms'));
+        $version   = $release_data['version'] ?? FORM_LOCATOR_VERSION;
+        $date      = $release_data['date'] ?? '';
+        $tag_name  = $release_data['tag_name'] ?? ('v' . $version);
+        $changelog_raw = $release_data['changelog'] ?? '';
+
+        if (empty(trim($changelog_raw))) {
+            $changelog_raw = self::get_changelog_from_readme();
+        }
+        $changelog = !empty(trim($changelog_raw))
+            ? self::simple_markdown_to_html($changelog_raw)
+            : '<p>' . esc_html__('Changelog not available.', 'form-locator-for-gravity-forms') . '</p>';
+
+        $readme = self::get_readme_sections();
+        $desc_text = !empty($readme['description'])
+            ? $readme['description']
+            : esc_html__('Comprehensive Gravity Forms detection across WordPress pages, posts, and page builders. Find forms embedded via shortcodes, blocks, widgets, and page builder modules.', 'form-locator-for-gravity-forms');
+        $description = self::simple_markdown_to_html($desc_text);
+
+        $install_text = !empty($readme['installation'])
+            ? $readme['installation']
+            : esc_html__('Upload the plugin files to the /wp-content/plugins/form-locator-for-gravity-forms directory, or install the plugin through the WordPress admin screen directly. Activate the plugin through the Plugins screen in WordPress.', 'form-locator-for-gravity-forms');
+        $installation = self::simple_markdown_to_html($install_text);
+
+        $screenshots = '<p>' . sprintf(
+            esc_html__('Screenshots available at %s', 'form-locator-for-gravity-forms'),
+            '<a href="' . esc_url('https://github.com/' . FORM_LOCATOR_GITHUB_REPO) . '">GitHub</a>'
+        ) . '</p>';
 
         $plugin_info = (object) array(
             'name'            => 'Form Locator for Gravity Forms',
@@ -143,27 +198,34 @@ class Form_Locator_Updater {
                 'description'   => $description,
                 'installation'   => $installation,
                 'changelog'      => $changelog,
-                'screenshots'    => 'https://github.com/' . FORM_LOCATOR_GITHUB_REPO,
+                'screenshots'    => $screenshots,
             ),
-            'download_link'  => 'https://github.com/' . FORM_LOCATOR_GITHUB_REPO . '/archive/refs/tags/' . ($release_data['tag_name'] ?? 'v' . $version) . '.zip',
+            'download_link'  => 'https://github.com/' . FORM_LOCATOR_GITHUB_REPO . '/archive/refs/tags/' . $tag_name . '.zip',
         );
 
         return $plugin_info;
     }
 
     /**
-     * Convert markdown to HTML for plugin info sections
+     * Convert markdown to simple HTML using only wp_kses-allowed tags.
      *
-     * @param string $markdown Raw markdown text
-     * @return string HTML output safe for wp_kses_post
+     * @param string $text Raw markdown or plain text
+     * @return string HTML safe for plugin info sections
      */
-    private static function format_plugin_section($markdown) {
-        if (empty(trim($markdown))) {
+    private static function simple_markdown_to_html($text) {
+        if (empty(trim($text))) {
             return '';
         }
-        $parsedown = new Parsedown();
-        $parsedown->setSafeMode(true);
-        return $parsedown->text($markdown);
+        $html = esc_html($text);
+        $html = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', $html);
+        $html = preg_replace('/\*(.+?)\*/s', '<em>$1</em>', $html);
+        $html = preg_replace('/`([^`]+)`/', '<code>$1</code>', $html);
+        $html = preg_replace('/^## (.+)$/m', '<h2>$1</h2>', $html);
+        $html = preg_replace('/^### (.+)$/m', '<h3>$1</h3>', $html);
+        $html = preg_replace('/^= ([^=]+) =$/m', '<h3>$1</h3>', $html);
+        $html = preg_replace('/^[-*] (.+)$/m', '<li>$1</li>', $html);
+        $html = preg_replace('/(<li>.*?<\/li>\s*)+/s', '<ul>$0</ul>', $html);
+        return nl2br($html);
     }
 
     /**
@@ -204,6 +266,38 @@ class Form_Locator_Updater {
             $sections['installation'] = trim(implode("\n", $buffer));
         }
         return $sections;
+    }
+
+    /**
+     * Get changelog section from readme.txt as fallback when GitHub API fails.
+     *
+     * @return string Changelog content or empty string
+     */
+    private static function get_changelog_from_readme() {
+        $readme_path = FORM_LOCATOR_PLUGIN_DIR . 'readme.txt';
+        if (!is_readable($readme_path)) {
+            return '';
+        }
+        $content = file_get_contents($readme_path);
+        if ($content === false) {
+            return '';
+        }
+        $current  = null;
+        $buffer   = array();
+        $lines    = explode("\n", $content);
+        foreach ($lines as $line) {
+            if (preg_match('/^== ([^=]+) ==$/', $line, $m)) {
+                if ($current === 'changelog') {
+                    return trim(implode("\n", $buffer));
+                }
+                $next = strtolower(trim($m[1]));
+                $current = ($next === 'changelog') ? $next : null;
+                $buffer = array();
+            } elseif ($current === 'changelog') {
+                $buffer[] = $line;
+            }
+        }
+        return $current === 'changelog' ? trim(implode("\n", $buffer)) : '';
     }
 
     /**
