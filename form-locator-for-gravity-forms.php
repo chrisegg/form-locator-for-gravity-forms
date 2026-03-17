@@ -114,7 +114,7 @@ function form_locator_check_gf_dependency() {
 // Check dependency on plugins_loaded
 add_action('plugins_loaded', 'form_locator_check_gf_dependency');
 
-// GitHub update checker
+// GitHub update checker - load early so plugins_api filter is registered before any requests
 require_once plugin_dir_path(__FILE__) . 'includes/class-form-locator-updater.php';
-add_action('init', array('Form_Locator_Updater', 'init'));
+add_action('plugins_loaded', array('Form_Locator_Updater', 'init'), 5);
 

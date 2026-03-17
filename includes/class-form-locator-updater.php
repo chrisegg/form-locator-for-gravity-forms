@@ -38,13 +38,14 @@ class Form_Locator_Updater {
         }
 
         add_filter('pre_set_site_transient_update_plugins', array(__CLASS__, 'check_for_update'));
-        add_filter('plugins_api', array(__CLASS__, 'plugin_info'), 10, 3);
+        add_filter('plugins_api', array(__CLASS__, 'plugin_info'), 5, 3);
         add_action(
             'in_plugin_update_message-' . plugin_basename(FORM_LOCATOR_PLUGIN_FILE),
             array(__CLASS__, 'update_message')
         );
         add_action('load-update-core.php', array(__CLASS__, 'clear_release_cache'));
-        add_action('upgrader_process_complete', array(__CLASS__, 'reactivate_after_update'), 10, 2);
+        add_filter('upgrader_pre_install', array(__CLASS__, 'prevent_deactivation_during_update'), 5, 2);
+        add_action('upgrader_process_complete', array(__CLASS__, 'remove_cron_filter_after_update'), 10, 2);
     }
 
     /**
@@ -56,32 +57,30 @@ class Form_Locator_Updater {
     }
 
     /**
-     * Reactivate the plugin after it has been updated.
-     * WordPress deactivates plugins during updates but does not automatically reactivate them.
+     * Prevent plugin deactivation during updates by making wp_doing_cron() return true.
+     * WordPress skips deactivation when wp_doing_cron() is true (same as background updates).
      *
-     * @param \WP_Upgrader $upgrader   The upgrader instance
-     * @param array        $options    Array of update data
+     * @param bool|WP_Error $response   The response object
+     * @param array         $hook_extra Extra arguments passed to the hook
+     * @return bool|WP_Error The unmodified response
      */
-    public static function reactivate_after_update($upgrader, $options) {
-        if ($options['action'] !== 'update' || $options['type'] !== 'plugin') {
-            return;
+    public static function prevent_deactivation_during_update($response, $hook_extra) {
+        if (isset($hook_extra['type']) && $hook_extra['type'] === 'plugin') {
+            add_filter('wp_doing_cron', '__return_true');
         }
+        return $response;
+    }
 
-        $plugin_slug = plugin_basename(FORM_LOCATOR_PLUGIN_FILE);
-        $plugins     = isset($options['plugins']) ? $options['plugins'] : array();
-        if (isset($options['plugin']) && !isset($options['plugins'])) {
-            $plugins = array($options['plugin']);
+    /**
+     * Remove the wp_doing_cron filter after plugin update completes.
+     *
+     * @param WP_Upgrader $upgrader The upgrader instance
+     * @param array       $options  Array of update data
+     */
+    public static function remove_cron_filter_after_update($upgrader, $options) {
+        if (isset($options['type']) && $options['type'] === 'plugin') {
+            remove_filter('wp_doing_cron', '__return_true');
         }
-
-        if (!in_array($plugin_slug, $plugins, true)) {
-            return;
-        }
-
-        if (!function_exists('activate_plugin')) {
-            require_once ABSPATH . 'wp-admin/includes/plugin.php';
-        }
-
-        activate_plugin($plugin_slug);
     }
 
     /**
@@ -126,8 +125,8 @@ class Form_Locator_Updater {
                 'tested'        => '7.0.0',
                 'last_updated'  => $release_data['date'] ?? '',
                 'sections'     => array(
-                    'description' => self::simple_markdown_to_html($desc_content),
-                    'changelog'   => $changelog_raw ? self::simple_markdown_to_html($changelog_raw) : '',
+                    'description' => nl2br(esc_html($desc_content)),
+                    'changelog'   => $changelog_raw ? nl2br(esc_html($changelog_raw)) : '',
                 ),
             );
         }
@@ -149,7 +148,8 @@ class Form_Locator_Updater {
         }
 
         $slug = is_object($args) ? ($args->slug ?? '') : ($args['slug'] ?? '');
-        if ($slug !== 'form-locator-for-gravity-forms') {
+        $valid_slugs = array('form-locator-for-gravity-forms', 'form-locator-for-gravity-forms/form-locator-for-gravity-forms');
+        if (!in_array($slug, $valid_slugs, true) && strpos($slug, 'form-locator-for-gravity-forms') === false) {
             return $result;
         }
 
@@ -166,27 +166,32 @@ class Form_Locator_Updater {
         if (empty(trim($changelog_raw))) {
             $changelog_raw = self::get_changelog_from_readme();
         }
-        $changelog = !empty(trim($changelog_raw))
-            ? self::simple_markdown_to_html($changelog_raw)
-            : '<p>' . esc_html__('Changelog not available.', 'form-locator-for-gravity-forms') . '</p>';
+        $changelog = self::format_changelog_for_display($changelog_raw, $version);
 
         $readme = self::get_readme_sections();
         $desc_text = !empty($readme['description'])
             ? $readme['description']
             : esc_html__('Comprehensive Gravity Forms detection across WordPress pages, posts, and page builders. Find forms embedded via shortcodes, blocks, widgets, and page builder modules.', 'form-locator-for-gravity-forms');
-        $description = self::simple_markdown_to_html($desc_text);
+        $description = nl2br(esc_html($desc_text));
 
         $install_text = !empty($readme['installation'])
             ? $readme['installation']
             : esc_html__('Upload the plugin files to the /wp-content/plugins/form-locator-for-gravity-forms directory, or install the plugin through the WordPress admin screen directly. Activate the plugin through the Plugins screen in WordPress.', 'form-locator-for-gravity-forms');
-        $installation = self::simple_markdown_to_html($install_text);
+        $installation = nl2br(esc_html($install_text));
 
         $screenshots = '<p>' . sprintf(
             esc_html__('Screenshots available at %s', 'form-locator-for-gravity-forms'),
             '<a href="' . esc_url('https://github.com/' . FORM_LOCATOR_GITHUB_REPO) . '">GitHub</a>'
         ) . '</p>';
 
-        $plugin_info = (object) array(
+        $sections = array(
+            'description'   => $description ?: '<p>' . esc_html__('Form Locator for Gravity Forms - comprehensive form detection across WordPress.', 'form-locator-for-gravity-forms') . '</p>',
+            'installation'   => $installation ?: '<p>' . esc_html__('Upload and activate via the Plugins screen.', 'form-locator-for-gravity-forms') . '</p>',
+            'changelog'      => $changelog,
+            'screenshots'    => $screenshots,
+        );
+
+        return (object) array(
             'name'            => 'Form Locator for Gravity Forms',
             'slug'            => 'form-locator-for-gravity-forms',
             'version'         => $version,
@@ -194,16 +199,37 @@ class Form_Locator_Updater {
             'author_profile'  => 'https://gravityranger.com',
             'last_updated'    => $date,
             'homepage'       => 'https://github.com/' . FORM_LOCATOR_GITHUB_REPO,
-            'sections'       => array(
-                'description'   => $description,
-                'installation'   => $installation,
-                'changelog'      => $changelog,
-                'screenshots'    => $screenshots,
-            ),
+            'sections'       => $sections,
             'download_link'  => 'https://github.com/' . FORM_LOCATOR_GITHUB_REPO . '/archive/refs/tags/' . $tag_name . '.zip',
         );
+    }
 
-        return $plugin_info;
+    /**
+     * Format changelog for plugin info modal - matches Gravity Forms Stripe structure (h2 + ul/li).
+     *
+     * @param string $changelog_raw Raw changelog text
+     * @param string $version      Plugin version
+     * @return string HTML safe for wp_kses
+     */
+    private static function format_changelog_for_display($changelog_raw, $version) {
+        if (empty(trim($changelog_raw))) {
+            return '<p>' . esc_html__('Changelog not available.', 'form-locator-for-gravity-forms') . '</p>';
+        }
+        $lines = explode("\n", trim($changelog_raw));
+        $items = array();
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $content = preg_replace('/^[=*\-]+\s*/', '', $line);
+            $content = preg_replace('/\s*[=*\-]+$/', '', $content);
+            $items[] = '<li>' . esc_html($content) . '</li>';
+        }
+        if (empty($items)) {
+            return nl2br(esc_html($changelog_raw));
+        }
+        return '<h2>Form Locator for Gravity Forms v' . esc_html($version) . ' Changelog</h2><ul>' . implode('', $items) . '</ul>';
     }
 
     /**
