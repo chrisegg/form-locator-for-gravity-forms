@@ -73,7 +73,7 @@ class Form_Locator_AddOn extends GFAddOn {
      * Get singleton instance
      */
     public static function get_instance() {
-        if (self::$_instance == null) {
+        if (self::$_instance === null) {
             self::$_instance = new Form_Locator_AddOn();
         }
         return self::$_instance;
@@ -758,74 +758,6 @@ class Form_Locator_AddOn extends GFAddOn {
                 'data' => array(),
                 'datasets' => array(),
                 'error' => 'Failed to retrieve embedded form entry statistics'
-            );
-        }
-    }
-
-    /**
-     * Get entry statistics by month for line chart (legacy method)
-     */
-    private function get_entry_stats_by_month($months = 12) {
-        global $wpdb;
-        
-        // Check if Gravity Forms tables exist
-        if (!$this->gf_tables_exist()) {
-            return array(
-                'labels' => array(),
-                'data' => array(),
-                'error' => 'Gravity Forms tables not found'
-            );
-        }
-        
-        try {
-            $results = $wpdb->get_results($wpdb->prepare("
-                SELECT 
-                    DATE_FORMAT(date_created, '%%Y-%%m') as month,
-                    COUNT(*) as entry_count
-                FROM {$wpdb->prefix}gf_entry 
-                WHERE date_created >= DATE_SUB(NOW(), INTERVAL %d MONTH)
-                AND status = 'active'
-                GROUP BY DATE_FORMAT(date_created, '%%Y-%%m')
-                ORDER BY month ASC
-            ", $months));
-            
-            if ($wpdb->last_error) {
-                $this->log_error('Database error in get_entry_stats_by_month: ' . $wpdb->last_error);
-                return array(
-                    'labels' => array(),
-                    'data' => array(),
-                    'error' => 'Database query failed'
-                );
-            }
-            
-            // Fill in missing months with 0 entries
-            $month_data = array();
-            $labels = array();
-            
-            for ($i = $months - 1; $i >= 0; $i--) {
-                $month = date('Y-m', strtotime("-{$i} months"));
-                $month_data[$month] = 0;
-                $labels[] = date('M Y', strtotime("-{$i} months"));
-            }
-            
-            // Fill in actual data
-            foreach ($results as $row) {
-                if (isset($month_data[$row->month])) {
-                    $month_data[$row->month] = intval($row->entry_count);
-                }
-            }
-            
-            return array(
-                'labels' => $labels,
-                'data' => array_values($month_data)
-            );
-            
-        } catch (Exception $e) {
-            $this->log_error('Exception in get_entry_stats_by_month: ' . $e->getMessage());
-            return array(
-                'labels' => array(),
-                'data' => array(),
-                'error' => 'Failed to retrieve entry statistics'
             );
         }
     }
