@@ -482,7 +482,7 @@ class Form_Locator_AddOn extends GFAddOn {
     /**
      * Log error messages
      */
-    private function log_error($message) {
+    public function log_error($message) {
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('Form Locator Error: ' . $message);
         }
