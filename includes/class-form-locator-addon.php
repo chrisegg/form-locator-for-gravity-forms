@@ -158,9 +158,14 @@ class Form_Locator_AddOn extends GFAddOn {
             $form_pages = [];
             $total_posts_scanned = 0;
 
-            // Retrieve all published posts
+            // Retrieve all published posts and pages (excluding attachments, nav items, etc.)
             $results = $wpdb->get_results($wpdb->prepare(
-                "SELECT ID, post_title, post_type, post_content FROM {$wpdb->posts} WHERE post_status = %s", 'publish'
+                "SELECT ID, post_title, post_type, post_content 
+                FROM {$wpdb->posts} 
+                WHERE post_status = %s 
+                AND post_type IN ('post', 'page') 
+                ORDER BY post_type, post_title", 
+                'publish'
             ), ARRAY_A);
 
             if ($wpdb->last_error) {
@@ -190,7 +195,8 @@ class Form_Locator_AddOn extends GFAddOn {
             }
 
             // Get chart data with error handling
-            $monthly_stats = $this->get_entry_stats_by_month(12);
+            $embedded_form_ids = $this->get_all_embedded_form_ids($form_pages);
+            $monthly_stats = $this->get_embedded_form_entries_by_month($embedded_form_ids, 12);
             $form_stats = $this->get_entry_stats_by_form();
             
             // Additional stats with fallbacks
@@ -543,7 +549,175 @@ class Form_Locator_AddOn extends GFAddOn {
     }
 
     /**
-     * Get entry statistics by month for line chart
+     * Get all embedded form IDs from scanned pages
+     */
+    private function get_all_embedded_form_ids($form_pages) {
+        $embedded_form_ids = array();
+        
+        foreach ($form_pages as $page) {
+            // Collect all form IDs from shortcodes, blocks, and page builders
+            if (!empty($page['Form IDs'])) {
+                $embedded_form_ids = array_merge($embedded_form_ids, $page['Form IDs']);
+            }
+            if (!empty($page['Block Form IDs'])) {
+                $embedded_form_ids = array_merge($embedded_form_ids, $page['Block Form IDs']);
+            }
+            if (!empty($page['Page Builder Form IDs'])) {
+                $embedded_form_ids = array_merge($embedded_form_ids, $page['Page Builder Form IDs']);
+            }
+        }
+        
+        return array_unique($embedded_form_ids);
+    }
+
+    /**
+     * Get entry statistics by month for embedded forms only
+     */
+    private function get_embedded_form_entries_by_month($embedded_form_ids, $months = 12) {
+        global $wpdb;
+        
+        // Check if Gravity Forms tables exist
+        if (!$this->gf_tables_exist()) {
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'datasets' => array(),
+                'error' => 'Gravity Forms tables not found'
+            );
+        }
+        
+        // If no embedded forms found, return empty data
+        if (empty($embedded_form_ids)) {
+            $labels = array();
+            for ($i = $months - 1; $i >= 0; $i--) {
+                $labels[] = date('M Y', strtotime("-{$i} months"));
+            }
+            
+            return array(
+                'labels' => $labels,
+                'data' => array_fill(0, $months, 0),
+                'datasets' => array()
+            );
+        }
+        
+        try {
+            // Create placeholders for the IN clause
+            $placeholders = implode(',', array_fill(0, count($embedded_form_ids), '%d'));
+            
+            // Prepare parameters: months first, then form IDs
+            $params = array_merge(array($months), $embedded_form_ids);
+            
+            $results = $wpdb->get_results($wpdb->prepare("
+                SELECT 
+                    DATE_FORMAT(e.date_created, '%%Y-%%m') as month,
+                    f.title as form_name,
+                    f.id as form_id,
+                    COUNT(*) as entry_count
+                FROM {$wpdb->prefix}gf_entry e
+                INNER JOIN {$wpdb->prefix}gf_form f ON e.form_id = f.id
+                WHERE e.date_created >= DATE_SUB(NOW(), INTERVAL %d MONTH)
+                AND e.status = 'active'
+                AND e.form_id IN ($placeholders)
+                GROUP BY DATE_FORMAT(e.date_created, '%%Y-%%m'), e.form_id, f.title
+                ORDER BY month ASC, form_name ASC
+            ", $params));
+            
+            if ($wpdb->last_error) {
+                $this->log_error('Database error in get_embedded_form_entries_by_month: ' . $wpdb->last_error);
+                return array(
+                    'labels' => array(),
+                    'data' => array(),
+                    'datasets' => array(),
+                    'error' => 'Database query failed'
+                );
+            }
+            
+            // Initialize month labels and data structure
+            $labels = array();
+            $month_keys = array();
+            for ($i = $months - 1; $i >= 0; $i--) {
+                $month_key = date('Y-m', strtotime("-{$i} months"));
+                $month_keys[] = $month_key;
+                $labels[] = date('M Y', strtotime("-{$i} months"));
+            }
+            
+            // Group data by form and create datasets
+            $form_data = array();
+            $form_colors = array(
+                '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+                '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
+            );
+            
+            foreach ($results as $row) {
+                $form_id = $row->form_id;
+                $form_name = $row->form_name;
+                
+                if (!isset($form_data[$form_id])) {
+                    $form_data[$form_id] = array(
+                        'name' => $form_name,
+                        'data' => array_fill(0, $months, 0)
+                    );
+                }
+                
+                // Find the month index and set the data
+                $month_index = array_search($row->month, $month_keys);
+                if ($month_index !== false) {
+                    $form_data[$form_id]['data'][$month_index] = intval($row->entry_count);
+                }
+            }
+            
+            // Create datasets for Chart.js
+            $datasets = array();
+            $color_index = 0;
+            
+            foreach ($form_data as $form_id => $data) {
+                $color = $form_colors[$color_index % count($form_colors)];
+                
+                $datasets[] = array(
+                    'label' => $data['name'],
+                    'data' => $data['data'],
+                    'borderColor' => $color,
+                    'backgroundColor' => $color . '20', // Add transparency
+                    'borderWidth' => 2,
+                    'fill' => false,
+                    'tension' => 0.4,
+                    'pointBackgroundColor' => $color,
+                    'pointBorderColor' => '#fff',
+                    'pointBorderWidth' => 2,
+                    'pointRadius' => 4,
+                    'pointHoverRadius' => 6
+                );
+                
+                $color_index++;
+            }
+            
+            // Calculate total entries per month for backward compatibility
+            $total_data = array_fill(0, $months, 0);
+            foreach ($form_data as $data) {
+                for ($i = 0; $i < $months; $i++) {
+                    $total_data[$i] += $data['data'][$i];
+                }
+            }
+            
+            return array(
+                'labels' => $labels,
+                'data' => $total_data, // For backward compatibility
+                'datasets' => $datasets
+            );
+            
+        } catch (Exception $e) {
+            $this->log_error('Exception in get_embedded_form_entries_by_month: ' . $e->getMessage());
+            return array(
+                'labels' => array(),
+                'data' => array(),
+                'datasets' => array(),
+                'error' => 'Failed to retrieve embedded form entry statistics'
+            );
+        }
+    }
+
+    /**
+     * Get entry statistics by month for line chart (legacy method)
      */
     private function get_entry_stats_by_month($months = 12) {
         global $wpdb;
