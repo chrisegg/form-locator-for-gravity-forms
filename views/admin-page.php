@@ -1,6 +1,11 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
+    /* Hide framework page title - we show our own styled title with icon below */
+    #wpbody-content > h1:first-child {
+        display: none !important;
+    }
+    
     /* Dashboard Layout */
     .dashboard-container {
         display: grid;
@@ -17,7 +22,7 @@
     
     .stat-blocks {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(4, 1fr);
         gap: 12px;
         margin-bottom: 15px;
     }
@@ -43,6 +48,16 @@
         box-shadow: 0 4px 15px rgba(240, 147, 251, 0.2);
     }
     
+    .stat-block:nth-child(3) {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        box-shadow: 0 4px 15px rgba(79, 172, 254, 0.2);
+    }
+    
+    .stat-block:nth-child(4) {
+        background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        box-shadow: 0 4px 15px rgba(67, 233, 123, 0.2);
+    }
+    
     .stat-block:hover {
         transform: translateY(-3px);
         box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
@@ -50,6 +65,14 @@
     
     .stat-block:nth-child(2):hover {
         box-shadow: 0 8px 25px rgba(240, 147, 251, 0.3);
+    }
+    
+    .stat-block:nth-child(3):hover {
+        box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
+    }
+    
+    .stat-block:nth-child(4):hover {
+        box-shadow: 0 8px 25px rgba(67, 233, 123, 0.3);
     }
     
     .stat-block::before {
@@ -86,6 +109,22 @@
     
     .stat-block:nth-child(2)::after {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E");
+        background-size: 14px;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-color: transparent;
+    }
+    
+    .stat-block:nth-child(3)::after {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+        background-size: 14px;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-color: transparent;
+    }
+    
+    .stat-block:nth-child(4)::after {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E");
         background-size: 14px;
         background-repeat: no-repeat;
         background-position: center;
@@ -306,6 +345,12 @@
         }
     }
     
+    @media (max-width: 1200px) {
+        .stat-blocks {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
     @media (max-width: 768px) {
         .stat-blocks {
             grid-template-columns: 1fr;
@@ -359,12 +404,22 @@
                     <div class="stat-block">
                         <div class="stat-number"><?php echo esc_html($total_posts_scanned); ?></div>
                         <div class="stat-label"><?php esc_html_e('Posts Scanned', 'form-locator-for-gravity-forms'); ?></div>
-                        <div class="stat-change">+100%</div>
+                        <div class="stat-change"><?php esc_html_e('Published content', 'form-locator-for-gravity-forms'); ?></div>
                     </div>
                     <div class="stat-block">
                         <div class="stat-number"><?php echo esc_html(count($gf_pages)); ?></div>
                         <div class="stat-label"><?php esc_html_e('Embedded Forms', 'form-locator-for-gravity-forms'); ?></div>
-                        <div class="stat-change">This Month</div>
+                        <div class="stat-change"><?php esc_html_e('Pages with forms', 'form-locator-for-gravity-forms'); ?></div>
+                    </div>
+                    <div class="stat-block">
+                        <div class="stat-number"><?php echo esc_html($active_forms ?? 0); ?></div>
+                        <div class="stat-label"><?php esc_html_e('Active Forms', 'form-locator-for-gravity-forms'); ?></div>
+                        <div class="stat-change"><?php esc_html_e('Ready to use', 'form-locator-for-gravity-forms'); ?></div>
+                    </div>
+                    <div class="stat-block">
+                        <div class="stat-number"><?php echo esc_html($inactive_forms ?? 0); ?></div>
+                        <div class="stat-label"><?php esc_html_e('Inactive Forms', 'form-locator-for-gravity-forms'); ?></div>
+                        <div class="stat-change"><?php esc_html_e('Deactivated', 'form-locator-for-gravity-forms'); ?></div>
                     </div>
                 </div>
                 

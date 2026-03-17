@@ -38,9 +38,9 @@ class Form_Locator_AddOn extends GFAddOn {
     protected $_full_path = __FILE__;
 
     /**
-     * Add-on title
+     * Add-on title (used for page header - keep short to avoid duplicate with our styled title)
      */
-    protected $_title = 'Form Locator for Gravity Forms';
+    protected $_title = 'Form Locator';
 
     /**
      * Add-on short title
@@ -84,9 +84,53 @@ class Form_Locator_AddOn extends GFAddOn {
      */
     public function init() {
         parent::init();
-        
+
         // Add any additional initialization here
         add_action('admin_init', array($this, 'admin_init'));
+
+        // Move Form Locator to bottom of Forms submenu (run as late as possible)
+        add_action('admin_menu', array($this, 'move_form_locator_menu_to_bottom'), PHP_INT_MAX);
+    }
+
+    /**
+     * Move Form Locator menu item to the bottom of the Forms submenu.
+     * Uses admin_menu at PHP_INT_MAX so we run after Gravity Forms builds its menu.
+     */
+    public function move_form_locator_menu_to_bottom() {
+        global $submenu;
+
+        if (empty($submenu) || !is_array($submenu)) {
+            return;
+        }
+
+        $our_slug = $this->_slug;
+        $our_title = $this->get_short_title();
+
+        foreach ($submenu as $parent => $items) {
+            if (!is_array($items)) {
+                continue;
+            }
+
+            $our_index = null;
+            $our_item = null;
+
+            foreach ($items as $index => $item) {
+                $slug = isset($item[2]) ? $item[2] : '';
+                $title = isset($item[0]) ? strip_tags($item[0]) : '';
+                $is_ours = ($slug === $our_slug || $slug === 'gf_form_locator' || $title === $our_title);
+                if ($is_ours) {
+                    $our_index = $index;
+                    $our_item = $item;
+                    break;
+                }
+            }
+
+            if ($our_index !== null && $our_item !== null) {
+                unset($submenu[$parent][$our_index]);
+                $submenu[$parent][] = $our_item;
+                return;
+            }
+        }
     }
 
     /**
@@ -152,6 +196,7 @@ class Form_Locator_AddOn extends GFAddOn {
             // Additional stats with fallbacks
             $total_entries = $this->gf_tables_exist() ? $this->get_total_entries() : 0;
             $active_forms = $this->gf_tables_exist() ? $this->get_active_forms_count() : 0;
+            $inactive_forms = $this->gf_tables_exist() ? $this->get_inactive_forms_count() : 0;
             $recent_entries = $this->gf_tables_exist() ? $this->get_recent_entries_count(30) : 0;
             
             // Check for chart data errors
@@ -652,6 +697,21 @@ class Form_Locator_AddOn extends GFAddOn {
             SELECT COUNT(*) 
             FROM {$wpdb->prefix}gf_form 
             WHERE is_active = 1 AND is_trash = 0
+        ");
+        
+        return intval($count);
+    }
+
+    /**
+     * Get inactive forms count (forms that exist but are deactivated, not trashed)
+     */
+    private function get_inactive_forms_count() {
+        global $wpdb;
+        
+        $count = $wpdb->get_var("
+            SELECT COUNT(*) 
+            FROM {$wpdb->prefix}gf_form 
+            WHERE is_active = 0 AND is_trash = 0
         ");
         
         return intval($count);
