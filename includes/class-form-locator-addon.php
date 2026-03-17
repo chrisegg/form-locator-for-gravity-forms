@@ -15,7 +15,7 @@ class Form_Locator_AddOn extends GFAddOn {
     /**
      * Add-on version
      */
-    protected $_version = '2.0.0';
+    protected $_version = '2.0.1';
 
     /**
      * Minimum Gravity Forms version required

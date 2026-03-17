@@ -7,7 +7,7 @@ Tags: Gravity Forms, Add-on, Utility, Page Builder, Elementor, Beaver Builder, A
 Requires at least: 6.7
 Tested up to: 7.0.0
 Requires PHP: 8.0.0
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPLv2
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -117,6 +117,15 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
 
 == Changelog ==
 
+= 2.0.1: March 17, 2026 =
+* **FIX**: Auto-update from GitHub releases
+  * Fixed "Download failed. Not Found" error when updating
+  * Package URL now uses actual tag name from GitHub API (supports tags with or without "v" prefix)
+* **IMPROVED**: Plugin info modal display
+  * Description, Installation, and Changelog tabs now render formatted HTML instead of raw markdown
+  * Expanded Description tab with full readme content (features, page builders, security)
+  * Installation tab now shows prerequisites and both Traditional/Composer methods
+
 = 2.0.0: March 16, 2026 =
 * **MAJOR**: Complete refactor to official Gravity Forms Add-On Framework
   * Now extends GFAddOn class for seamless integration
@@ -187,6 +196,9 @@ The plugin only scans when you visit the Form Locator page. It doesn't run any b
 * Form status checking
 
 == Upgrade Notice ==
+
+= 2.0.1 =
+Fixes the "Download failed. Not Found" error when updating from GitHub. Plugin info modal now displays formatted Description, Installation, and Changelog tabs.
 
 = 2.0.0 =
 MAJOR UPDATE: Complete refactor to official Gravity Forms Add-On Framework. This version requires Gravity Forms 2.4+ and provides native GF integration, enhanced security, improved admin interface, and automatic updates from GitHub releases.
