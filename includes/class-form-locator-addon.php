@@ -148,51 +148,6 @@ class Form_Locator_AddOn extends GFAddOn {
     }
 
     /**
-     * Check if current admin page is the Form Locator plugin page
-     *
-     * @return bool
-     */
-    public function is_form_locator_plugin_page() {
-        $page = function_exists('rgget') ? rgget('page') : (isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '');
-        return in_array($page, array($this->_slug, 'gf_form_locator'), true);
-    }
-
-    /**
-     * Enqueue scripts for the Form Locator plugin page
-     */
-    public function scripts() {
-        $base_url = $this->get_base_url();
-        $scripts = parent::scripts();
-        $scripts[] = array(
-            'handle'  => 'form-locator-chartjs',
-            'src'     => $base_url . '/assets/js/chart.min.js',
-            'version' => $this->_version,
-            'deps'    => array(),
-            'in_footer' => false,
-            'enqueue' => array(
-                array(
-                    'admin_page' => array( 'plugin_page' ),
-                    'callback'   => array( $this, 'is_form_locator_plugin_page' ),
-                ),
-            ),
-        );
-        $scripts[] = array(
-            'handle'  => 'form-locator-chartjs-datalabels',
-            'src'     => $base_url . '/assets/js/chartjs-plugin-datalabels.min.js',
-            'version' => $this->_version,
-            'deps'    => array( 'form-locator-chartjs' ),
-            'in_footer' => false,
-            'enqueue' => array(
-                array(
-                    'admin_page' => array( 'plugin_page' ),
-                    'callback'   => array( $this, 'is_form_locator_plugin_page' ),
-                ),
-            ),
-        );
-        return $scripts;
-    }
-
-    /**
      * Main plugin page content
      */
     public function plugin_page() {

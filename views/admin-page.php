@@ -1,3 +1,5 @@
+<script src="<?php echo esc_url( plugin_dir_url( dirname( __FILE__ ) ) . 'assets/js/chart.min.js' ); ?>"></script>
+<script src="<?php echo esc_url( plugin_dir_url( dirname( __FILE__ ) ) . 'assets/js/chartjs-plugin-datalabels.min.js' ); ?>"></script>
 <style>
     /* Hide GF framework page title (h2.gf_admin_page_title) - keep only our h1 with search icon */
     .gf_admin_page_title {
