@@ -1,6 +1,3 @@
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-
 <style>
     /* Hide GF framework page title (h2.gf_admin_page_title) - keep only our h1 with search icon */
     .gf_admin_page_title {
@@ -449,7 +446,7 @@
                     <div class="stat-block">
                         <div class="stat-number"><?php echo esc_html($total_posts_scanned); ?></div>
                         <div class="stat-label"><?php esc_html_e('Posts Scanned', 'form-locator-for-gravity-forms'); ?></div>
-                        <div class="stat-change"><?php esc_html_e('Published content', 'form-locator-for-gravity-forms'); ?></div>
+                        <div class="stat-change"><?php esc_html_e('Content scanned', 'form-locator-for-gravity-forms'); ?></div>
                     </div>
                     <div class="stat-block">
                         <div class="stat-number"><?php echo esc_html(count($gf_pages)); ?></div>
@@ -510,7 +507,7 @@
             <div class="notice notice-warning inline">
                 <p>
                     <strong><?php esc_html_e('No Content Found:', 'form-locator-for-gravity-forms'); ?></strong>
-                    <?php esc_html_e('No published posts were found to scan.', 'form-locator-for-gravity-forms'); ?>
+                    <?php esc_html_e('No content was found to scan.', 'form-locator-for-gravity-forms'); ?>
                 </p>
             </div>
         <?php endif; ?>
@@ -627,12 +624,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Chart data from PHP
     const monthlyData = <?php echo json_encode($monthly_stats ?? ['labels' => [], 'data' => [], 'datasets' => []]); ?>;
     const formData = <?php echo json_encode($form_stats ?? ['labels' => [], 'data' => []]); ?>;
-    
-    // Debug info (only visible in browser console)
-    <?php if (defined('WP_DEBUG') && WP_DEBUG): ?>
-    console.log('Embedded forms detected:', <?php echo json_encode($embedded_form_ids ?? []); ?>);
-    console.log('Monthly data:', monthlyData);
-    <?php endif; ?>
     
     // Line Chart Configuration
     const entriesCtx = document.getElementById('entriesChart');
