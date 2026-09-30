@@ -47,17 +47,14 @@ class Form_Locator_AddOn extends GFAddOn {
      */
     protected $_short_title = 'Form Locator';
 
-    /**
-     * Capabilities required to access the add-on
-     */
-    protected $_capabilities = array('manage_options');
+    // Members plugin integration
+    protected $_capabilities = array('gravityforms_form_locator', 'gravityforms_form_locator_uninstall');
 
-    /**
-     * Capabilities for specific functionality
-     */
-    protected $_capabilities_settings_page = 'manage_options';
-    protected $_capabilities_form_settings = 'manage_options';
-    protected $_capabilities_uninstall = 'manage_options';
+    // Permissions
+    protected $_capabilities_plugin_page   = 'gravityforms_form_locator';
+    protected $_capabilities_settings_page = 'gravityforms_form_locator';
+    protected $_capabilities_form_settings = 'gravityforms_form_locator';
+    protected $_capabilities_uninstall     = 'gravityforms_form_locator_uninstall';
 
     /**
      * Enable background feed processing
