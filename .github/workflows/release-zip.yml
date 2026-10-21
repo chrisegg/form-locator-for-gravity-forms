@@ -1,0 +1,80 @@
+# Builds a clean, installable plugin zip and attaches it to each GitHub release.
+# Save as .github/workflows/release-zip.yml in the plugin's repo.
+#
+# - The zip's folder is the plugin slug (the repo name, or the repo variable PLUGIN_SLUG
+#   if the folder name differs: Settings → Secrets and variables → Actions → Variables).
+# - Leaves out dev files. Add a .distignore (one pattern per line) for anything else to skip.
+# - Runs `composer install --no-dev` and `npm run build` when the repo has them.
+# - Mark the release "Set as a pre-release" for a beta build on Gravity Ranger Labs.
+# - For a release published before this file existed: Actions → Release zip → Run workflow, enter its tag.
+
+name: Release zip
+
+on:
+  release:
+    types: [published]
+  # Actions → Release zip → Run workflow: build and attach a zip for a release that already exists.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of an existing release (e.g. v2.0.1)
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    env:
+      SLUG: ${{ vars.PLUGIN_SLUG || github.event.repository.name }}
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Composer (runtime packages only)
+        if: hashFiles('composer.json') != ''
+        run: |
+          # Only when the plugin needs packages at runtime (anything besides php / ext-*).
+          if jq -e '(.require // {}) | keys | map(select(. != "php" and (startswith("ext-") | not))) | length > 0' composer.json > /dev/null; then
+            composer install --no-dev --optimize-autoloader --no-interaction
+          fi
+
+      - name: Build assets
+        if: hashFiles('package.json') != ''
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.build ? 0 : 1)"; then
+            npm ci && npm run build
+          fi
+
+      - name: Check the version matches the tag
+        run: |
+          MAIN=$(grep -l -m1 -E "^[[:space:]]*\*?[[:space:]]*Plugin Name:" ./*.php | head -1)
+          VER=$(grep -m1 -E "^[[:space:]]*\*?[[:space:]]*Version:" "$MAIN" | sed -E 's/.*Version:[[:space:]]*//' | tr -d '[:space:]')
+          if [ "${TAG#v}" != "$VER" ]; then
+            echo "::warning::Tag $TAG but $MAIN says Version: $VER. Testers' sites will show $VER."
+          fi
+
+      - name: Build the zip
+        run: |
+          mkdir -p "dist/$SLUG"
+          EXTRA=""
+          [ -f .distignore ] && EXTRA="--exclude-from=.distignore"
+          rsync -a $EXTRA \
+            --exclude='.git' --exclude='.github' --exclude='dist' --exclude='node_modules' \
+            --exclude='tests' --exclude='test' --exclude='.distignore' --exclude='.gitignore' \
+            --exclude='.gitattributes' --exclude='.editorconfig' --exclude='.DS_Store' \
+            --exclude='phpunit.xml*' --exclude='phpcs.xml*' --exclude='.phpcs.xml*' \
+            --exclude='composer.json' --exclude='composer.lock' --exclude='package.json' --exclude='package-lock.json' \
+            --exclude='phpstan.neon*' --exclude='.nvmrc' --exclude='.npmrc' --exclude='*.zip' \
+            --exclude='deploy*.php' --exclude='.env*' \
+            ./ "dist/$SLUG/"
+          (cd dist && zip -rq "$SLUG.zip" "$SLUG")
+          unzip -l "dist/$SLUG.zip" | tail -1
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "dist/$SLUG.zip" --clobber
